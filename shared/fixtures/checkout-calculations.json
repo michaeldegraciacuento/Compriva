@@ -1,0 +1,118 @@
+{
+  "description": "Worked checkout calculations, checked by hand. Both the backend CartCalculator (PHP) and the POS cart calculator (TypeScript) must produce exactly these results. Amounts are pesos with 2 decimals; quantities, prices and rates may have up to 4. See docs/point-of-sale.md section 3.",
+  "cases": [
+    {
+      "name": "single VAT-inclusive item",
+      "lines": [{ "quantity": "2", "unit_price": "50.00", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true }],
+      "expected": {
+        "lines": [{ "gross": "100.00", "discount": "0.00", "taxable": "89.29", "tax": "10.71", "total": "100.00" }],
+        "totals": { "gross_amount": "100.00", "discount_total": "0.00", "vatable_sales": "89.29", "vat_amount": "10.71", "vat_exempt_sales": "0.00", "zero_rated_sales": "0.00", "grand_total": "100.00" }
+      }
+    },
+    {
+      "name": "VAT-exempt produce by weight and fractional quantities",
+      "lines": [
+        { "quantity": "1.25", "unit_price": "180.00", "tax_type": "vat_exempt", "tax_rate": "0", "tax_inclusive": true },
+        { "quantity": "3", "unit_price": "12.50", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true },
+        { "quantity": "0.333", "unit_price": "99.99", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true }
+      ],
+      "expected": {
+        "lines": [
+          { "gross": "225.00", "discount": "0.00", "taxable": "225.00", "tax": "0.00", "total": "225.00" },
+          { "gross": "37.50", "discount": "0.00", "taxable": "33.48", "tax": "4.02", "total": "37.50" },
+          { "gross": "33.30", "discount": "0.00", "taxable": "29.73", "tax": "3.57", "total": "33.30" }
+        ],
+        "totals": { "gross_amount": "295.80", "discount_total": "0.00", "vatable_sales": "63.21", "vat_amount": "7.59", "vat_exempt_sales": "225.00", "zero_rated_sales": "0.00", "grand_total": "295.80" }
+      }
+    },
+    {
+      "name": "item discounts, a fixed discount larger than the line is capped",
+      "lines": [
+        { "quantity": "4", "unit_price": "25.00", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true, "discount": { "type": "percentage", "value": "10" } },
+        { "quantity": "1", "unit_price": "30.00", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true, "discount": { "type": "fixed_amount", "value": "5.00" } },
+        { "quantity": "1", "unit_price": "3.00", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true, "discount": { "type": "fixed_amount", "value": "10.00" } }
+      ],
+      "expected": {
+        "lines": [
+          { "gross": "100.00", "discount": "10.00", "taxable": "80.36", "tax": "9.64", "total": "90.00" },
+          { "gross": "30.00", "discount": "5.00", "taxable": "22.32", "tax": "2.68", "total": "25.00" },
+          { "gross": "3.00", "discount": "3.00", "taxable": "0.00", "tax": "0.00", "total": "0.00" }
+        ],
+        "totals": { "gross_amount": "133.00", "discount_total": "18.00", "vatable_sales": "102.68", "vat_amount": "12.32", "vat_exempt_sales": "0.00", "zero_rated_sales": "0.00", "grand_total": "115.00" }
+      }
+    },
+    {
+      "name": "fixed sale discount split across lines, leftover centavo to the first line",
+      "lines": [
+        { "quantity": "1", "unit_price": "10.00", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true },
+        { "quantity": "1", "unit_price": "10.00", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true },
+        { "quantity": "1", "unit_price": "10.00", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true }
+      ],
+      "sale_discount": { "type": "fixed_amount", "value": "10.00" },
+      "expected": {
+        "lines": [
+          { "gross": "10.00", "discount": "3.34", "taxable": "5.95", "tax": "0.71", "total": "6.66" },
+          { "gross": "10.00", "discount": "3.33", "taxable": "5.96", "tax": "0.71", "total": "6.67" },
+          { "gross": "10.00", "discount": "3.33", "taxable": "5.96", "tax": "0.71", "total": "6.67" }
+        ],
+        "totals": { "gross_amount": "30.00", "discount_total": "10.00", "vatable_sales": "17.87", "vat_amount": "2.13", "vat_exempt_sales": "0.00", "zero_rated_sales": "0.00", "grand_total": "20.00" }
+      }
+    },
+    {
+      "name": "percentage sale discount on top of an item discount, zero-rated line",
+      "lines": [
+        { "quantity": "2", "unit_price": "45.50", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true, "discount": { "type": "percentage", "value": "10" } },
+        { "quantity": "1", "unit_price": "18.10", "tax_type": "zero_rated", "tax_rate": "0", "tax_inclusive": true }
+      ],
+      "sale_discount": { "type": "percentage", "value": "5" },
+      "expected": {
+        "lines": [
+          { "gross": "91.00", "discount": "13.20", "taxable": "69.46", "tax": "8.34", "total": "77.80" },
+          { "gross": "18.10", "discount": "0.90", "taxable": "17.20", "tax": "0.00", "total": "17.20" }
+        ],
+        "totals": { "gross_amount": "109.10", "discount_total": "14.10", "vatable_sales": "69.46", "vat_amount": "8.34", "vat_exempt_sales": "0.00", "zero_rated_sales": "17.20", "grand_total": "95.00" }
+      }
+    },
+    {
+      "name": "senior citizen: VAT removed first, then 20% off, sale becomes VAT-exempt",
+      "lines": [
+        { "quantity": "1", "unit_price": "112.00", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true },
+        { "quantity": "2", "unit_price": "25.00", "tax_type": "vat_exempt", "tax_rate": "0", "tax_inclusive": true }
+      ],
+      "sale_discount": { "type": "percentage", "value": "20", "vat_exempt": true },
+      "expected": {
+        "lines": [
+          { "gross": "112.00", "discount": "20.00", "taxable": "80.00", "tax": "0.00", "total": "80.00" },
+          { "gross": "50.00", "discount": "10.00", "taxable": "40.00", "tax": "0.00", "total": "40.00" }
+        ],
+        "totals": { "gross_amount": "162.00", "discount_total": "30.00", "vatable_sales": "0.00", "vat_amount": "0.00", "vat_exempt_sales": "120.00", "zero_rated_sales": "0.00", "grand_total": "120.00" }
+      }
+    },
+    {
+      "name": "VAT added on top of an exclusive price",
+      "lines": [{ "quantity": "3", "unit_price": "10.00", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": false }],
+      "expected": {
+        "lines": [{ "gross": "30.00", "discount": "0.00", "taxable": "30.00", "tax": "3.60", "total": "33.60" }],
+        "totals": { "gross_amount": "30.00", "discount_total": "0.00", "vatable_sales": "30.00", "vat_amount": "3.60", "vat_exempt_sales": "0.00", "zero_rated_sales": "0.00", "grand_total": "33.60" }
+      }
+    },
+    {
+      "name": "percentage sale discount capped by the maximum amount",
+      "lines": [{ "quantity": "1", "unit_price": "100.00", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true }],
+      "sale_discount": { "type": "percentage", "value": "50", "max_amount": "20.00" },
+      "expected": {
+        "lines": [{ "gross": "100.00", "discount": "20.00", "taxable": "71.43", "tax": "8.57", "total": "80.00" }],
+        "totals": { "gross_amount": "100.00", "discount_total": "20.00", "vatable_sales": "71.43", "vat_amount": "8.57", "vat_exempt_sales": "0.00", "zero_rated_sales": "0.00", "grand_total": "80.00" }
+      }
+    },
+    {
+      "name": "fixed sale discount larger than the sale makes it free, never negative",
+      "lines": [{ "quantity": "1", "unit_price": "15.00", "tax_type": "vat", "tax_rate": "12", "tax_inclusive": true }],
+      "sale_discount": { "type": "fixed_amount", "value": "50.00" },
+      "expected": {
+        "lines": [{ "gross": "15.00", "discount": "15.00", "taxable": "0.00", "tax": "0.00", "total": "0.00" }],
+        "totals": { "gross_amount": "15.00", "discount_total": "15.00", "vatable_sales": "0.00", "vat_amount": "0.00", "vat_exempt_sales": "0.00", "zero_rated_sales": "0.00", "grand_total": "0.00" }
+      }
+    }
+  ]
+}

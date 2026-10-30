@@ -1,0 +1,184 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Compriva design tokens — see docs/design-system.md.
+ * Light theme only (Phase 4 brief). Every text/background pair below was
+ * contrast-checked: body text ≥ 4.5:1, chart marks ≥ 3:1 on the card surface.
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-heading: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-chart-grid: var(--chart-grid);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-status-good: var(--status-good);
+  --color-status-warning: var(--status-warning);
+  --color-status-critical: var(--status-critical);
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+}
+
+:root {
+  /* Brand: Compriva emerald */
+  --brand-50: #eef8f4;
+  --brand-100: #d5eee5;
+  --brand-500: #0d8a6c; /* chart series — validated as a data mark on white */
+  --brand-600: #0b7a60; /* primary actions — white text 5.3:1 */
+  --brand-700: #0a5c48; /* text on brand tints — 7:1 */
+
+  /* Surfaces & ink */
+  --background: #f6f7f7; /* app canvas */
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --muted: #f1f3f4;
+  --muted-foreground: #5b6670; /* 5.9:1 on white, 5.5:1 on canvas */
+  --secondary: #eef1f2;
+  --secondary-foreground: #1f2933;
+  --accent: #e8f4f0; /* hover / selected tint */
+  --accent-foreground: var(--brand-700);
+  --primary: var(--brand-600);
+  --primary-foreground: #ffffff;
+  --border: #e4e7ea;
+  --input: #d9dee2;
+  --ring: var(--brand-600);
+
+  /* Semantic status — always paired with an icon and a label */
+  --success: #14713f;
+  --success-soft: #e8f5ee;
+  --warning: #8a5300;
+  --warning-soft: #fdf3e1;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --info: #1d5fbf;
+  --info-soft: #e9f1fc;
+  --destructive: var(--danger);
+  /* Status fills for meters and marks (dataviz status palette; never series colors) */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+
+  /* Charts: slot 1 is the brand series; 2–5 follow the validated categorical order */
+  --chart-1: var(--brand-500);
+  --chart-2: #eb6834;
+  --chart-3: #2a78d6;
+  --chart-4: #eda100;
+  --chart-5: #6250d6;
+  --chart-grid: #eceef0; /* hairline gridlines, one step off the card surface */
+
+  --radius: 0.625rem;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1f2933;
+  --sidebar-primary: var(--brand-600);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e6f3ee;
+  --sidebar-accent-foreground: var(--brand-700);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--brand-600);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    color-scheme: light;
+  }
+  body {
+    @apply bg-background text-foreground text-sm;
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-heading tracking-tight;
+  }
+}
+
+@layer utilities {
+  /* Columns of numbers align; large standalone figures keep proportional digits. */
+  .numeric {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Receipts: printing shows only the receipt (src/modules/pos/components/receipt.tsx). */
+@media print {
+  @page {
+    margin: 4mm;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .receipt-print,
+  .receipt-print * {
+    visibility: visible;
+  }
+  .receipt-print {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 72mm;
+    color: #000;
+    background: #fff;
+    box-shadow: none;
+    border: 0;
+  }
+}

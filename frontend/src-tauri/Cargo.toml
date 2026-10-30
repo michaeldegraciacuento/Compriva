@@ -1,0 +1,35 @@
+[package]
+name = "compriva"
+version = "0.1.0"
+description = "Compriva POS checkout terminal"
+authors = ["Compriva"]
+license = ""
+repository = ""
+edition = "2024"
+rust-version = "1.90"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "compriva_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.12.5", features = [] }
+tauri-plugin-log = "2"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+# Same sqlx as tauri-plugin-sql, for local_tx.rs (one transaction over several statements).
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio"] }
+uuid = { version = "1.29.0", features = ["v4"] }
+bcrypt = "0.19.3"
+keyring = { version = "4.2.0", features = ["windows-native-keyring-store"] }
+
+[dev-dependencies]
+sha2 = "0.11.1"
+tempfile = "3.27.0"
