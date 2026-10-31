@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Stock a terminal may sell offline (docs/offline-sync.md §6).
+ * Stock a terminal may sell offline (docs/README.md).
  * available = allocated − consumed − released; the ledger is in events().
  */
 class TerminalStockAllocation extends Model

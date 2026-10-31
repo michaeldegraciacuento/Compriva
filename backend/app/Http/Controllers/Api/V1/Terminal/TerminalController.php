@@ -13,7 +13,7 @@ use App\Http\Resources\V1\Identity\AuthSessionResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/** Endpoints used by checkout terminals (docs/authentication.md). */
+/** Endpoints used by checkout terminals (docs/README.md). */
 class TerminalController extends Controller
 {
     /** Public (rate-limited): exchange a pairing code for the device token. */

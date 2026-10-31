@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Phase 8 — desktop terminals and offline synchronization (docs/offline-sync.md).
+ * Phase 8 — desktop terminals and offline synchronization (docs/README.md).
  *
  * sync_conflicts: what the server found when it applied an operation that
  *   was valid but did not match its own view: a sale beyond the terminal's

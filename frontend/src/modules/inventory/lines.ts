@@ -5,7 +5,7 @@ import type { DocumentLineInput, DocumentType } from "./types";
 
 /**
  * A stock document line while it is being edited. Every value stays a string
- * (docs/database.md D4); the server converts units and does the arithmetic.
+ * (docs/README.md D4); the server converts units and does the arithmetic.
  * These checks only catch mistakes early: the server validates everything again.
  */
 export interface LineDraft {

@@ -47,7 +47,7 @@ export function backoffDelay(failures: number, random: () => number = Math.rando
 class BatchStopped extends Error {}
 
 /**
- * Background synchronization of a desktop terminal (docs/offline-sync.md §4–§5).
+ * Background synchronization of a desktop terminal (docs/README.md).
  *
  * One cycle: push the outbox in order (batches of 50) → pull changes after the
  * cursor until there are no more (a snapshot first, or again when the server

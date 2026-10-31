@@ -49,6 +49,23 @@ export interface TerminalCredentials {
   verifyPin(pin: string, hash: string): Promise<boolean>;
 }
 
+/** A Windows printer as the desktop app sees it (src-tauri/src/printing.rs). */
+export interface PrinterInfo {
+  name: string;
+  is_default: boolean;
+  /** Ready, Offline, Stopped, Error or Unknown. */
+  status: string;
+  driver: string | null;
+  port: string | null;
+}
+
+/** Receipt printers and the cash drawer (desktop only). */
+export interface PrinterAccess {
+  list(): Promise<PrinterInfo[]>;
+  /** Sends raw bytes (ESC/POS) to a printer through the Windows spooler. */
+  printRaw(printer: string, data: Uint8Array, jobName: string): Promise<void>;
+}
+
 export interface Platform {
   readonly kind: PlatformKind;
   readonly authMode: AuthMode;
@@ -68,4 +85,7 @@ export interface Platform {
 
   /** Desktop: terminal credentials. Web: null. */
   readonly terminal: TerminalCredentials | null;
+
+  /** Desktop: raw printing to receipt printers. Web: null (the browser's print dialog is used). */
+  readonly printers: PrinterAccess | null;
 }

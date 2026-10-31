@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 
+import { notify } from "@/lib/notify";
 import { useAuthStore } from "@/modules/auth/store";
 import { getPlatform } from "@/platform";
 import type { LocalDatabase } from "@/platform/types";
@@ -13,6 +14,7 @@ import { LocalPos } from "./local-pos";
 import { getMeta, META } from "./meta";
 import { httpSyncApi, requestSyncToken } from "./sync-api";
 import { SyncEngine, type SyncStatus } from "./sync-engine";
+import { syncNotices } from "./sync-notices";
 
 /** Live sync status for the header indicator and the Sync page. */
 export const useSyncStatus = create<{ status: SyncStatus | null; set(status: SyncStatus): void }>()((set) => ({
@@ -38,11 +40,18 @@ export function getOfflineRuntime(): Promise<OfflineRuntime | null> {
     if (platform.kind !== "desktop" || !platform.terminal) return null;
     const terminal = platform.terminal;
     const db = (await platform.getLocalDatabase())!;
+    let settled: SyncStatus | null = null;
 
     const engine = new SyncEngine({
       db,
       api: httpSyncApi(() => terminal.getDeviceToken()),
-      onStatus: (status) => useSyncStatus.getState().set(status),
+      onStatus: (status) => {
+        useSyncStatus.getState().set(status);
+        // Small toasts (not pop-ups: selling goes on) for changes a cashier should know about; "syncing" in between is skipped.
+        if (status.state === "syncing") return;
+        for (const notice of syncNotices(settled, status)) notify.background[notice.kind](notice.title, notice.description);
+        settled = status;
+      },
     });
     const pos = new LocalPos({
       db,

@@ -9,6 +9,7 @@ import { FormField } from "@/components/form-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { applyApiError } from "@/lib/form-errors";
+import { notify } from "@/lib/notify";
 
 import { changePassword, changePin } from "../api";
 
@@ -45,7 +46,8 @@ export function ChangePasswordForm({ disabled }: { disabled?: boolean }) {
     try {
       await changePassword(values);
       reset();
-      setStatus({ kind: "success", message: "Password changed. You were signed out of your other sessions." });
+      setStatus(null);
+      notify.success("Password changed", "You were signed out of your other sessions.");
     } catch (error) {
       const message = applyApiError(error, setError, ["current_password", "password", "password_confirmation"]);
       if (message) setStatus({ kind: "error", message });
@@ -91,7 +93,8 @@ export function ChangePinForm({ disabled }: { disabled?: boolean }) {
     try {
       await changePin(values);
       reset();
-      setStatus({ kind: "success", message: "PIN updated. Terminals receive it at their next cashier-list refresh." });
+      setStatus(null);
+      notify.success("PIN updated", "Terminals receive it at their next cashier-list refresh.");
     } catch (error) {
       const message = applyApiError(error, setError, ["current_password", "pin", "pin_confirmation"]);
       if (message) setStatus({ kind: "error", message });

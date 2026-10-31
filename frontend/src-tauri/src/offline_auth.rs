@@ -1,4 +1,4 @@
-//! Offline cashier PIN verification (docs/authentication.md §4).
+//! Offline cashier PIN verification (docs/README.md).
 //!
 //! The terminal caches each cashier's bcrypt PIN hash from the server
 //! (GET /api/v1/terminal/cashiers). Verification runs here, in native code,

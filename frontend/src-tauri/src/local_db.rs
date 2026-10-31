@@ -36,6 +36,12 @@ const MIGRATIONS: &[(i64, &str, &str)] = &[
         // Catalog and stock allocation cache, local shifts and sales, the sync outbox and sync history.
         include_str!("../migrations/0003_create_offline_pos_tables.sql"),
     ),
+    (
+        4,
+        "create_customer_cache",
+        // Active customers for the POS customer picker; resets the cursor so a snapshot fills it.
+        include_str!("../migrations/0004_create_customer_cache.sql"),
+    ),
 ];
 
 pub fn migrations() -> Vec<Migration> {
@@ -69,6 +75,10 @@ mod tests {
         (
             3,
             "86ab71c6144f6acf8f04e3d596342a34a39fcd224f504afdb6b6b29a5dec5f2c8a9b097da6acff015547b6df0dfbe82b",
+        ),
+        (
+            4,
+            "ed011a9a1bbef12c2bff0952d74e0b0bda53fe4fd65072c17347273233f8fc31a52f921addad7ee3d6a19eff72783f55",
         ),
     ];
 

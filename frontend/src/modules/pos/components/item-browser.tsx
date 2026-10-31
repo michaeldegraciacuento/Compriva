@@ -12,6 +12,9 @@ import { formatMoney, formatQuantity } from "@/lib/format";
 import { useApiQuery } from "@/lib/use-api-query";
 import { cn } from "@/lib/utils";
 
+import { useHardware } from "@/modules/hardware/settings";
+import { errorBeep, ScanDetector } from "@/modules/hardware/scanner";
+
 import { usePos } from "../backend-context";
 import type { PosItem } from "../types";
 
@@ -25,9 +28,13 @@ function stockNote(item: PosItem): { text: string; tone: "muted" | "warning" | "
 }
 
 /**
- * Finding items: scan a barcode (the scanner types it and presses Enter), type
- * a name or SKU, or browse a category. A scan that matches one item adds it
- * straight to the cart in the scanned unit (e.g. the box barcode adds a box).
+ * Finding items: scan a barcode, type a name or SKU, or browse a category.
+ *
+ * A USB scanner types the code and presses Enter. Scans are caught in the scan
+ * box and, by their speed, anywhere else on the page that is not a text field
+ * (ScanDetector); a double read of the same code within a moment is dropped.
+ * A scan that matches one item adds it in the scanned unit (a box barcode adds
+ * a box); an unknown barcode beeps and says so.
  */
 export function ItemBrowser({ categories, onAdd }: {
   categories: { id: string; name: string }[];
@@ -38,7 +45,12 @@ export function ItemBrowser({ categories, onAdd }: {
   const [term, setTerm] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [unknown, setUnknown] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const scannerSettings = useHardware((st) => st.settings.scanner);
+  const detector = useRef<ScanDetector | null>(null);
+  detector.current ??= new ScanDetector(scannerSettings);
+  const scanRef = useRef<(code: string) => Promise<void>>(async () => undefined);
 
   const results = useApiQuery(["pos-catalog", term, categoryId], () =>
     term === "" && categoryId === null ? Promise.resolve([] as PosItem[]) : pos.catalog({ q: term || undefined, category_id: categoryId ?? undefined }),
@@ -55,12 +67,13 @@ export function ItemBrowser({ categories, onAdd }: {
   const add = (item: PosItem, options: { unitId?: string | null; barcode?: string | null } = {}) => {
     onAdd(item, options);
     setMessage(null);
+    setUnknown(null);
     inputRef.current?.focus();
   };
 
-  const scan = async () => {
-    const code = text.trim();
+  const scan = async (code: string) => {
     if (code === "") return;
+    setUnknown(null);
     try {
       if (looksLikeBarcode(code)) {
         const [hit] = await pos.catalog({ barcode: code });
@@ -76,6 +89,14 @@ export function ItemBrowser({ categories, onAdd }: {
         setText("");
         return;
       }
+      if (found.length === 0 && looksLikeBarcode(code)) {
+        // Unknown barcode: tell the cashier clearly; the cart is unchanged.
+        errorBeep();
+        setUnknown(code);
+        setText("");
+        inputRef.current?.focus();
+        return;
+      }
       setTerm(code);
       setMessage(found.length === 0 ? `Nothing found for “${code}”.` : null);
     } catch (caught) {
@@ -83,10 +104,39 @@ export function ItemBrowser({ categories, onAdd }: {
     }
   };
 
+  useEffect(() => {
+    scanRef.current = scan;
+    detector.current?.configure(scannerSettings);
+  });
+
+  useEffect(() => {
+    void useHardware.getState().load(); // this terminal's scanner settings
+  }, []);
+
+  // Scans made while the cursor is elsewhere (on a button, the cart, nowhere): caught by their speed.
+  useEffect(() => {
+    const onWindowKey = (event: globalThis.KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editable = target?.closest("input, textarea, select, [contenteditable='true']");
+      if (editable || event.ctrlKey || event.altKey || event.metaKey) return;
+      const decision = detector.current!.key(event.key, event.timeStamp || performance.now());
+      if (detector.current!.inBurst(event.timeStamp || performance.now()) || decision.kind !== "none") event.preventDefault();
+      if (decision.kind === "scan") void scanRef.current(decision.code);
+    };
+    window.addEventListener("keydown", onWindowKey, true);
+    return () => window.removeEventListener("keydown", onWindowKey, true);
+  }, []);
+
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      void scan();
+      const code = text.trim();
+      if (code === "") return;
+      if (looksLikeBarcode(code) && detector.current!.accept(code, event.timeStamp || performance.now()).kind === "duplicate") {
+        setText(""); // a double read from the scanner: already added
+        return;
+      }
+      void scan(code);
     }
   };
 
@@ -130,6 +180,13 @@ export function ItemBrowser({ categories, onAdd }: {
         </div>
       )}
 
+      {unknown && (
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>
+            Unknown barcode <span className="font-mono font-medium">{unknown}</span>: it is not in the catalog. Search by name, or add the barcode to the product (Products).
+          </AlertDescription>
+        </Alert>
+      )}
       {message && <Alert><AlertDescription>{message}</AlertDescription></Alert>}
       {results.error && <Alert variant="destructive"><AlertDescription>{results.error.message}</AlertDescription></Alert>}
 

@@ -4,7 +4,7 @@ namespace Tests\Feature\Database;
 
 use Illuminate\Support\Facades\DB;
 
-/** Verifies the schema follows the rules in docs/database.md. */
+/** Verifies the schema follows the rules in docs/README.md. */
 class SchemaConventionsTest extends DatabaseTestCase
 {
     /** Tables whose keys are not UUIDs, with the documented reason. */
@@ -96,7 +96,7 @@ class SchemaConventionsTest extends DatabaseTestCase
         ))->pluck('name');
 
         foreach (['stock_movements', 'sale_items', 'sale_discounts', 'payments', 'cash_movements', 'sale_returns',
-            'sale_return_items', 'refunds', 'stock_allocation_events', 'audit_logs'] as $table) {
+            'sale_return_items', 'refunds', 'stock_allocation_events', 'audit_logs', 'sale_customer_links'] as $table) {
             $this->assertContains("{$table}_prevent_update", $triggers);
             $this->assertContains("{$table}_prevent_delete", $triggers);
         }

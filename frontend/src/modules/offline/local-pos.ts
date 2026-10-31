@@ -2,13 +2,16 @@ import { ApiError } from "@/lib/api";
 import { uuidv7 } from "@/lib/ids";
 import type { LocalDatabase, SqlStatement } from "@/platform/types";
 
+import { createCustomer } from "../customers/api";
+import type { CustomerInput } from "../customers/types";
 import type { CheckoutInput } from "../pos/api";
-import type { PosBackend } from "../pos/backend";
+import { toPosCustomer, type PosBackend } from "../pos/backend";
 import { lineUnit, priceCart } from "../pos/cart";
 import { cents, format, formatUnits, normalizeAmount, parse, sum, ZERO } from "../pos/fixed-point";
 import { applyTenders } from "../pos/tender";
-import type { Approval, CashMovement, CashMovementType, PaymentMethod, PosBootstrap, PosItem, PresetDiscount, Sale, SaleItem, Shift, ShiftSummary, Terminal } from "../pos/types";
+import type { Approval, CashMovement, CashMovementType, PaymentMethod, PosBootstrap, PosCustomer, PosItem, PresetDiscount, Sale, SaleItem, Shift, ShiftSummary, Terminal } from "../pos/types";
 import { availableFor } from "./allocations";
+import { customerStatement } from "./catalog-cache";
 import { baseQuantity, getJson, getList, getMeta, META } from "./meta";
 import { enqueue } from "./outbox";
 import type { CachedItem, TerminalSettings } from "./types";
@@ -49,7 +52,7 @@ const fail = (code: ConstructorParameters<typeof ApiError>[0]["code"], message: 
  * the same with or without internet: every change is written locally together
  * with its sync outbox operation, in one transaction, before success is shown.
  * The same calculator and payment rules as the server are used, and the server
- * validates everything again when the operations sync (docs/offline-sync.md).
+ * validates everything again when the operations sync (docs/README.md).
  *
  * Terminals sell only the stock allocated to them (§6): a line beyond the
  * terminal's remaining allocation is refused unless the store allows it.
@@ -89,6 +92,7 @@ export class LocalPos implements PosBackend {
       discounts: (await getList<PresetDiscount[]>(this.db, "discounts")) ?? [],
       categories: (await getList<{ id: string; name: string }[]>(this.db, "categories")) ?? [],
       receipt: settings.receipt,
+      pos: { max_cash_in_drawer: settings.pos.max_cash_in_drawer ?? "0" },
     };
   }
 
@@ -113,6 +117,22 @@ export class LocalPos implements PosBackend {
        ORDER BY name LIMIT 60`,
       [term, `%${term.replace(/[%_]/g, "")}%`, params.q ?? "", params.category_id ?? ""]);
     return Promise.all(toItems(rows));
+  }
+
+  // --- Customers -----------------------------------------------------------------
+
+  async customers(q: string): Promise<PosCustomer[]> {
+    const term = q.trim().toLowerCase().replace(/[%_]/g, "");
+    const rows = await this.db.select<{ data: string }>(
+      "SELECT data FROM customers WHERE ($1 = '' OR search LIKE $2) ORDER BY name LIMIT 20", [term, `%${term}%`]);
+    return rows.map((r) => JSON.parse(r.data) as PosCustomer);
+  }
+
+  /** New customers are created on the server (they need a code and must be unique); cached at once. */
+  async createCustomer(input: CustomerInput): Promise<PosCustomer> {
+    const customer = toPosCustomer(await createCustomer(input));
+    await this.db.transaction([customerStatement(customer)]);
+    return customer;
   }
 
   /** On the terminal, "stock" is what it may still sell: its allocation minus unsynced sales. */
@@ -313,6 +333,7 @@ export class LocalPos implements PosBackend {
       cashier_id: user.id,
       occurred_at: at,
       customer_name: input.customerName || null,
+      customer_id: input.customer?.id ?? null,
       approved_by: approver,
       lines: priced.lines.map((line, i) => ({
         id: lineIds[i],
@@ -338,7 +359,7 @@ export class LocalPos implements PosBackend {
       totals: priced.totals,
     };
 
-    const sale = this.receipt(payload, priced, tenders, terminal, user, settings, lineIds);
+    const sale = this.receipt(payload, priced, tenders, terminal, user, settings, lineIds, input.customer ?? null);
     const op = enqueue("sale.completed", payload, operationId, this.now());
     await this.commit([
       { sql: "INSERT INTO sales (id, receipt_number, receipt_sequence, shift_id, status, grand_total, occurred_at, data) VALUES ($1, $2, $3, $4, 'completed', $5, $6, $7)",
@@ -448,6 +469,7 @@ export class LocalPos implements PosBackend {
     user: LocalUser,
     settings: TerminalSettings,
     lineIds: string[],
+    customer: PosCustomer | null = null,
   ): Sale {
     const t = priced.totals;
     const items: SaleItem[] = priced.lines.map((line, i) => ({
@@ -470,7 +492,11 @@ export class LocalPos implements PosBackend {
       cashier_shift_id: payload.shift_id,
       occurred_at: payload.occurred_at,
       business_date: payload.occurred_at.slice(0, 10),
-      customer_name: payload.customer_name,
+      // The same snapshot the server stores (SaleCustomer): name, TIN, a business's address.
+      customer_id: customer?.id ?? null,
+      customer_name: payload.customer_name ?? customer?.name ?? null,
+      customer_tin: customer?.tin ?? null,
+      customer_address: customer?.type === "business" ? customer.address : null,
       customer_id_number: (saleDiscount?.customer_id_number as string | null | undefined) ?? null,
       gross_amount: t.gross_amount,
       discount_total: t.discount_total,

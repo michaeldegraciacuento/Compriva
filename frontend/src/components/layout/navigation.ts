@@ -7,6 +7,7 @@ import {
   type LucideIcon,
   Monitor,
   Package,
+  Printer,
   QrCode,
   Receipt,
   Settings,
@@ -36,7 +37,7 @@ export interface NavGroup {
   items: readonly NavItem[];
 }
 
-/** Sidebar structure, one entry per UI module (docs/architecture.md). */
+/** Sidebar structure, one entry per UI module (docs/README.md). */
 export const NAVIGATION: readonly NavGroup[] = [
   {
     label: null,
@@ -48,7 +49,8 @@ export const NAVIGATION: readonly NavGroup[] = [
       { label: "Point of Sale", href: "/pos", icon: ShoppingCart, permission: "pos.access", available: true },
       { label: "Sales", href: "/sales", icon: Receipt, permission: "sales.view", available: true },
       { label: "Cashier shifts", href: "/shifts", icon: Wallet, permission: "cashier.manage_shifts", available: true },
-      { label: "Customers", href: "/customers", icon: UserRound, permission: "customers.view", available: false },
+      { label: "Customers", href: "/customers", icon: UserRound, permission: "customers.view", available: true },
+      { label: "Hardware", href: "/hardware", icon: Printer, permission: "pos.access", available: true },
     ],
   },
   {
@@ -66,12 +68,12 @@ export const NAVIGATION: readonly NavGroup[] = [
   {
     label: "Administration",
     items: [
-      { label: "Users", href: "/users", icon: Users, permission: "users.manage", available: false },
-      { label: "Roles", href: "/roles", icon: ShieldCheck, permission: "roles.manage", available: false },
+      { label: "Users", href: "/users", icon: Users, permission: "users.manage", available: true },
+      { label: "Roles", href: "/roles", icon: ShieldCheck, permission: "roles.manage", available: true },
       { label: "Terminals & sync", href: "/terminals", icon: Monitor, permission: "inventory.allocate", available: true },
       { label: "Payment methods", href: "/payment-methods", icon: QrCode, permission: "payments.manage_methods", available: true },
-      { label: "Settings", href: "/settings", icon: Settings, permission: "settings.manage", available: false },
-      { label: "Audit log", href: "/audit", icon: ClipboardList, permission: "audit.view", available: false },
+      { label: "Settings", href: "/settings", icon: Settings, permission: "settings.manage", available: true },
+      { label: "Audit log", href: "/audit", icon: ClipboardList, permission: "audit.view", available: true },
       { label: "System status", href: "/system", icon: Activity, permission: "settings.manage", available: true },
     ],
   },
@@ -92,6 +94,9 @@ const EXTRA_ROUTES: Record<string, { label: string; parent?: string }> = {
   "/inventory/movements": { label: "Stock history", parent: "/inventory" },
   "/inventory/batches": { label: "Batches & expiry", parent: "/inventory" },
   "/sales/view": { label: "Sale", parent: "/sales" },
+  "/customers/view": { label: "Customer", parent: "/customers" },
+  "/users/view": { label: "User", parent: "/users" },
+  "/roles/edit": { label: "Role", parent: "/roles" },
   "/purchasing/orders/new": { label: "New purchase order", parent: "/purchasing" },
   "/purchasing/orders/edit": { label: "Edit purchase order", parent: "/purchasing" },
   "/purchasing/orders/view": { label: "Purchase order", parent: "/purchasing" },

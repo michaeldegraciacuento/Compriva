@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatDate, formatMoney, formatQuantity, formatTime } from "@/lib/format";
 import { factorField, moneyField } from "@/lib/schemas";
 import { useApiQuery } from "@/lib/use-api-query";
+import { notify } from "@/lib/notify";
 import { useCan } from "@/modules/auth/hooks";
 
 import { addBarcode, addConversion, fetchPriceHistory, removeBarcode, removeConversion, setPrice, setSkuActive, updateSku } from "../api";
@@ -76,6 +77,7 @@ function PriceDialog({ sku, onSaved }: { sku: Sku; onSaved: () => Promise<void> 
           price: values.price,
           effective_from: values.effective_from ? new Date(values.effective_from).toISOString() : null,
         });
+        notify.success("Price saved", `${sku.name}: ₱${values.price}${values.effective_from ? " from the chosen date" : ", effective now"}.`);
         await onSaved();
       }}
     >
@@ -154,6 +156,7 @@ function BarcodeDialog({ sku, onSaved }: { sku: Sku; onSaved: () => Promise<void
       fields={["barcode", "type", "unit_id"]}
       onSubmit={async (values) => {
         await addBarcode(sku.id, { ...values, unit_id: values.unit_id || null });
+        notify.success("Barcode added", values.barcode);
         await onSaved();
       }}
     >
@@ -188,6 +191,7 @@ function ConversionDialog({ sku, units, onSaved }: { sku: Sku; units: Unit[]; on
       fields={["unit_id", "factor"]}
       onSubmit={async (values) => {
         await addConversion(sku.id, values);
+        notify.success("Unit added", sku.name);
         await onSaved();
       }}
     >
@@ -244,6 +248,7 @@ function EditSkuDialog({ sku, units, onSaved }: { sku: Sku; units: Unit[]; onSav
           reorder_level: values.reorder_level,
           reorder_quantity: values.reorder_quantity,
         });
+        notify.success("Variant saved", sku.name);
         await onSaved();
       }}
     >
@@ -294,6 +299,7 @@ export function SkuCard({ sku, units, tracked, onChanged }: { sku: Sku; units: U
                   setToggleError(null);
                   try {
                     await setSkuActive(sku.id, checked);
+                    notify.success(checked ? "Variant activated" : "Variant deactivated", sku.name);
                     await onChanged();
                   } catch (error) {
                     setToggleError(error instanceof Error ? error.message : "Could not change the status.");
@@ -347,7 +353,7 @@ export function SkuCard({ sku, units, tracked, onChanged }: { sku: Sku; units: U
                         description={`${b.barcode} will no longer scan as ${sku.name}.`}
                         confirmLabel="Remove"
                         destructive
-                        onConfirm={async () => { await removeBarcode(b.id); await onChanged(); }}
+                        onConfirm={async () => { await removeBarcode(b.id); notify.success("Barcode removed", b.barcode); await onChanged(); }}
                       />
                     )}
                   </li>
@@ -373,7 +379,7 @@ export function SkuCard({ sku, units, tracked, onChanged }: { sku: Sku; units: U
                       description={`${sku.name} will no longer be counted or sold per ${c.unit.name.toLowerCase()}. Units used by prices or barcodes cannot be removed.`}
                       confirmLabel="Remove"
                       destructive
-                      onConfirm={async () => { await removeConversion(c.id); await onChanged(); }}
+                      onConfirm={async () => { await removeConversion(c.id); notify.success("Unit removed"); await onChanged(); }}
                     />
                   )}
                 </li>

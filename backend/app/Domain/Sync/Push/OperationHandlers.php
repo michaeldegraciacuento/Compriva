@@ -6,6 +6,7 @@ use App\Domain\Cashiering\Enums\CashMovementType;
 use App\Domain\Cashiering\Enums\ShiftStatus;
 use App\Domain\Cashiering\Queries\ShiftSummary;
 use App\Domain\Catalog\Enums\PriceTier;
+use App\Domain\Customers\SaleCustomer;
 use App\Domain\Inventory\Services\StockAllocations;
 use App\Domain\Inventory\Services\StockLedger;
 use App\Domain\Sales\Enums\SaleStatus;
@@ -207,6 +208,7 @@ class OperationHandlers
             'cashier_id' => ['required', 'uuid'],
             'occurred_at' => ['required', 'date'],
             'customer_name' => ['nullable', 'string', 'max:255'],
+            'customer_id' => ['nullable', 'uuid'],
             'approved_by' => ['nullable', 'uuid'],
             'lines' => ['required', 'array', 'min:1', 'max:200'],
             'lines.*.id' => ['required', 'uuid', 'distinct'],
@@ -319,7 +321,8 @@ class OperationHandlers
             'receipt_number' => $p['receipt_number'],
             'receipt_sequence' => $p['receipt_sequence'],
             'status' => SaleStatus::Completed,
-            'customer_name' => $p['customer_name'] ?? null,
+            // Never rejected for its customer: a customer deactivated meanwhile keeps the link (SaleCustomer).
+            ...SaleCustomer::resolve($p['customer_id'] ?? null, $p['customer_name'] ?? null, offline: true)['columns'],
             'customer_id_number' => $saleDiscount['customer_id_number'] ?? null,
             'gross_amount' => $calc['totals']['gross_amount'],
             'discount_total' => $calc['totals']['discount_total'],

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { toApiError } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { notify } from "@/lib/notify";
 
 import { usePos } from "../backend-context";
 import { cents, format, normalizeAmount, ZERO } from "../fixed-point";
@@ -62,7 +63,9 @@ export function CloseShiftDialog({ shift: initial, onClosed, trigger }: { shift:
     setBusy(true);
     setError(null);
     try {
-      setClosed(await pos.closeShift(amount));
+      const closedShift = await pos.closeShift(amount);
+      notify.success("Shift closed", closedShift.cash_variance && closedShift.cash_variance !== "0.00" && closedShift.cash_variance !== "0.0000" ? `Cash difference: ${formatMoney(closedShift.cash_variance)}.` : "The drawer count matches.");
+      setClosed(closedShift);
     } catch (caught) {
       setError(toApiError(caught).message);
     } finally {

@@ -1,7 +1,7 @@
 import { getApiClient } from "@/lib/api";
 import type { ApiEnvelope, Paginated, PaginationMeta } from "@/types/api";
 
-import type { Approval, CartLine, CashMovementType, PaymentInput, PaymentMethod, PosBootstrap, PosItem, Sale, SaleDiscount, SaleReturn, Shift } from "./types";
+import type { Approval, CartLine, CashMovementType, PaymentInput, PaymentMethod, PosBootstrap, PosCustomer, PosItem, Sale, SaleDiscount, SaleReturn, Shift } from "./types";
 
 async function writer() {
   const api = await getApiClient();
@@ -56,6 +56,8 @@ export interface CheckoutInput {
   payments: PaymentInput[];
   expectedTotal: string;
   customerName?: string | null;
+  /** A customer chosen from the list; their details are kept on the sale. */
+  customer?: PosCustomer | null;
   approval?: Approval | null;
 }
 
@@ -66,6 +68,7 @@ export async function checkout(input: CheckoutInput): Promise<ApiEnvelope<Sale, 
     payments: input.payments,
     expected_total: input.expectedTotal,
     customer_name: input.customerName || null,
+    customer_id: input.customer?.id ?? null,
     approval: input.approval ?? null,
   });
 }
@@ -86,6 +89,9 @@ export async function fetchSales(filters: SaleFilters): Promise<Paginated<Sale>>
 
 export const fetchSale = async (id: string) => (await getApiClient()).get<Sale>(`/sales/${id}`);
 export const reprintSale = async (id: string) => (await writer()).post<Sale>(`/sales/${id}/reprint`);
+/** A customer forgotten at checkout. The sale and its receipt stay as they are. */
+export const addCustomerToSale = async (id: string, customerId: string, reason: string | null) =>
+  (await writer()).post<Sale>(`/sales/${id}/customer`, { customer_id: customerId, reason });
 
 export const voidSale = async (id: string, reason: string, approval?: Approval | null) =>
   (await writer()).post<Sale>(`/sales/${id}/void`, { reason, approval: approval ?? null });

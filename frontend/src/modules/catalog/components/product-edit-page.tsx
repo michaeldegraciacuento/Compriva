@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { applyApiError } from "@/lib/form-errors";
 import { useApiQuery } from "@/lib/use-api-query";
+import { notify } from "@/lib/notify";
 import { useCan } from "@/modules/auth/hooks";
 
 import { addSku, fetchProduct, setProductActive, updateProduct } from "../api";
@@ -51,7 +52,8 @@ function DetailsForm({ product, refs, onSaved }: { product: Product; refs: Refs;
     setMessage(null);
     try {
       await updateProduct(product.id, productInput(values));
-      setMessage({ tone: "ok", text: "Product saved." });
+      setMessage(null);
+      notify.success("Product saved", product.name);
       await onSaved();
     } catch (error) {
       const text = applyApiError(error, setError, PRODUCT_FIELDS);
@@ -98,6 +100,7 @@ function AddSkuDialog({ product, refs, onSaved }: { product: Product; refs: Refs
       wide
       onSubmit={async (values) => {
         await addSku(product.id, skuInput(values));
+        notify.success("Variant added", product.name);
         await onSaved();
       }}
     >
@@ -141,7 +144,7 @@ function ProductEditor({ id }: { id: string }) {
                   : "It can be sold and stocked again."}
                 confirmLabel={p.is_active ? "Deactivate" : "Activate"}
                 destructive={p.is_active}
-                onConfirm={async () => { await setProductActive(p.id, !p.is_active); await product.reload(); }}
+                onConfirm={async () => { await setProductActive(p.id, !p.is_active); notify.success(p.is_active ? "Product deactivated" : "Product activated", p.name); await product.reload(); }}
               />
             )}
           </>

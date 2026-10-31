@@ -12,7 +12,7 @@ export type ClientErrorCode = "NETWORK_ERROR" | "TIMEOUT" | "INVALID_RESPONSE";
 
 /**
  * The only error type API calls throw. UI code branches on `code`
- * (docs/error-handling.md) and shows `message` to the user.
+ * (docs/README.md) and shows `message` to the user.
  */
 export class ApiError extends Error {
   readonly code: ApiErrorCode | ClientErrorCode;

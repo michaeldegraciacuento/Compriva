@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api";
 import { formatDate, formatQuantity } from "@/lib/format";
 import { useApiQuery } from "@/lib/use-api-query";
+import { notify } from "@/lib/notify";
 import { RequirePermission } from "@/modules/auth/components/auth-guard";
 import { useCan } from "@/modules/auth/hooks";
 import { skuUnits } from "@/modules/catalog/sku";
@@ -187,6 +188,8 @@ function StockDocumentForm({ type }: { type: DocumentType }) {
         notes: notes.trim() || null,
         lines: lines.map((line) => toLineInput(type, line)),
       });
+      if (document.status === "posted") notify.success(`${document.number} posted`, "Stock levels are updated.");
+      else notify.info(`${document.number} sent for approval`, "A manager approves it before stock changes.");
       router.push(`/inventory/documents/view?id=${document.id}`);
     } catch (error) {
       if (error instanceof ApiError) {

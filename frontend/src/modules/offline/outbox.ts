@@ -8,7 +8,7 @@ import type { OperationResult, OperationType, OutboxOperation, OutboxRow } from 
  * An operation is written in the same transaction as the change itself, so a
  * sale can never exist locally without its outbox entry. Operations are never
  * deleted: synced ones are kept with their result, rejected ones stay for
- * review (docs/offline-sync.md §3–§4).
+ * review (docs/README.md).
  */
 
 /** Insert statement; the local sequence is taken inside the transaction, so it is gap-free and ordered. */

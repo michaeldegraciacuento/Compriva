@@ -8,13 +8,13 @@ use App\Domain\Inventory\Enums\DocumentStatus;
 use App\Domain\Inventory\Enums\StockDocumentType;
 use App\Domain\Inventory\Enums\StockMovementType;
 use App\Domain\Inventory\Queries\StockOverview;
+use App\Domain\Settings\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\Inventory\StoreStockDocumentRequest;
 use App\Http\Resources\V1\Inventory\StockBatchResource;
 use App\Http\Resources\V1\Inventory\StockDocumentResource;
 use App\Http\Resources\V1\Inventory\StockLevelResource;
 use App\Http\Resources\V1\Inventory\StockMovementResource;
-use App\Models\Setting;
 use App\Models\StockAdjustment;
 use App\Models\StockBatch;
 use App\Models\StockMovement;
@@ -147,7 +147,7 @@ class InventoryController extends Controller
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         $today = Carbon::now(config('compriva.timezone'))->toDateString();
-        $window = (int) (Setting::whereNull('store_id')->where('group', 'inventory')->where('key', 'expiry_warning_days')->value('value') ?? 30);
+        $window = (int) Settings::get('inventory', 'expiry_warning_days');
         $windowEnd = Carbon::now(config('compriva.timezone'))->addDays($window)->toDateString();
 
         $batches = StockBatch::query()

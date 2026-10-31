@@ -11,7 +11,7 @@ use App\Domain\Settings\Enums\TaxType;
  * Pure and deterministic, integer centavos throughout (FixedPoint). The POS
  * screen runs the same algorithm (frontend/src/modules/pos/calculator.ts) so
  * the cashier sees the exact total the server will charge; both are tested
- * against shared/fixtures/checkout-calculations.json. Rules: docs/point-of-sale.md §3.
+ * against shared/fixtures/checkout-calculations.json. Rules: docs/README.md
  *
  * Steps per line:
  *  1. gross = quantity × unit price, rounded to centavos

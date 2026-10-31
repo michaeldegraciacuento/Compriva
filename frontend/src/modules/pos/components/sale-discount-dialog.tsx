@@ -9,29 +9,42 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 import { normalizeAmount, parse } from "../fixed-point";
-import type { PresetDiscount, SaleDiscount } from "../types";
+import type { PosCustomer, PresetDiscount, SaleDiscount } from "../types";
+import { CustomerPicker } from "./customer-picker";
 
 type Choice = { kind: "none" } | { kind: "preset"; id: string } | { kind: "percentage" } | { kind: "fixed_amount" };
 
 const describe = (d: PresetDiscount) => (d.type === "percentage" ? `${Number(d.value)}% off` : `₱${d.value} off`) + (d.is_vat_exempt ? ", VAT-exempt" : "");
 
 /**
- * Whole-sale discount: a preset such as Senior Citizen or PWD (VAT-exempt,
- * needs the customer's ID number) or a manual percentage or amount.
+ * The sale's customer and whole-sale discount: a preset such as Senior Citizen
+ * or PWD (VAT-exempt, needs the customer's ID number) or a manual percentage or
+ * amount. Choosing an SC or PWD customer picks their discount and ID number.
  */
-export function SaleDiscountDialog({ open, onOpenChange, presets, value, customerName, onSave }: {
+export function SaleDiscountDialog({ open, onOpenChange, presets, value, customerName, customer: initialCustomer, onSave }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   presets: PresetDiscount[];
   value: SaleDiscount | null;
   customerName: string;
-  onSave: (discount: SaleDiscount | null, customerName: string) => void;
+  customer: PosCustomer | null;
+  onSave: (discount: SaleDiscount | null, customerName: string, customer: PosCustomer | null) => void;
 }) {
   const initial: Choice = value === null ? { kind: "none" } : value.kind === "preset" ? { kind: "preset", id: value.preset.id } : { kind: value.type };
   const [choice, setChoice] = useState<Choice>(initial);
   const [amount, setAmount] = useState(value?.kind === "manual" ? value.value : "");
   const [idNumber, setIdNumber] = useState(value?.kind === "preset" ? (value.customerIdNumber ?? "") : "");
   const [name, setName] = useState(customerName);
+  const [customer, setCustomer] = useState(initialCustomer);
+
+  const chooseCustomer = (next: PosCustomer | null) => {
+    setCustomer(next);
+    setName(next?.name ?? "");
+    if (next?.type !== "senior_citizen" && next?.type !== "pwd") return;
+    const statutory = presets.find((p) => p.kind === next.type);
+    if (statutory && choice.kind === "none") setChoice({ kind: "preset", id: statutory.id });
+    if (next.id_number) setIdNumber(next.id_number);
+  };
 
   const preset = choice.kind === "preset" ? presets.find((p) => p.id === choice.id) : undefined;
   const manualAmount = normalizeAmount(amount);
@@ -45,7 +58,7 @@ export function SaleDiscountDialog({ open, onOpenChange, presets, value, custome
     if (problem) return;
     const discount: SaleDiscount | null =
       choice.kind === "none" ? null : preset ? { kind: "preset", preset, customerIdNumber: idNumber.trim() || null } : { kind: "manual", type: choice.kind as "percentage" | "fixed_amount", value: manualAmount! };
-    onSave(discount, name.trim());
+    onSave(discount, name.trim(), customer);
     onOpenChange(false);
   };
 
@@ -64,12 +77,16 @@ export function SaleDiscountDialog({ open, onOpenChange, presets, value, custome
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Sale discount and customer</DialogTitle>
           <DialogDescription>One discount applies to the whole sale. Manual discounts need a manager.</DialogDescription>
         </DialogHeader>
         <form className="grid gap-4" onSubmit={submit}>
+          <fieldset className="grid gap-1.5">
+            <legend className="mb-1.5 text-sm font-medium">Customer</legend>
+            <CustomerPicker value={customer} onChange={chooseCustomer} />
+          </fieldset>
           <div className="grid grid-cols-2 gap-2">
             {option("none", choice.kind === "none", () => setChoice({ kind: "none" }), "No discount")}
             {presets.map((p) => option(p.id, choice.kind === "preset" && choice.id === p.id, () => setChoice({ kind: "preset", id: p.id }), p.name, describe(p)))}
@@ -89,10 +106,12 @@ export function SaleDiscountDialog({ open, onOpenChange, presets, value, custome
               <Input id="sale-discount-id" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} maxLength={50} autoFocus />
             </div>
           )}
-          <div className="grid gap-1.5">
-            <Label htmlFor="customer-name">Customer name (optional, printed on the receipt)</Label>
-            <Input id="customer-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={255} />
-          </div>
+          {!customer && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="customer-name">Or just a name (optional, printed on the receipt)</Label>
+              <Input id="customer-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={255} />
+            </div>
+          )}
           {problem && <p className="text-sm text-danger">{problem}</p>}
           <DialogFooter>
             <Button type="submit" disabled={problem !== null}>Apply</Button>

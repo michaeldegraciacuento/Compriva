@@ -6,7 +6,7 @@ import { uuidv7 } from "@/lib/ids";
 
 import { addItem } from "./cart";
 import { loadHeldCarts, saveHeldCarts, type HeldCart } from "./held-carts";
-import type { CartLine, ItemDiscount, PosItem, SaleDiscount } from "./types";
+import type { CartLine, ItemDiscount, PosCustomer, PosItem, SaleDiscount } from "./types";
 
 interface CartState {
   /**
@@ -17,6 +17,8 @@ interface CartState {
   lines: CartLine[];
   discount: SaleDiscount | null;
   customerName: string;
+  /** A customer chosen from the list (customerName then holds their name, editable). */
+  customer: PosCustomer | null;
   held: HeldCart[];
 
   add(item: PosItem, options?: { unitId?: string | null; barcode?: string | null }): void;
@@ -28,6 +30,7 @@ interface CartState {
   replaceItems(items: PosItem[]): void;
   setDiscount(discount: SaleDiscount | null): void;
   setCustomerName(name: string): void;
+  setCustomer(customer: PosCustomer | null): void;
   /** Starts a new cart (after a sale, or to discard this one). */
   clear(): void;
 
@@ -37,7 +40,7 @@ interface CartState {
   discardHeld(terminalId: string, id: string): void;
 }
 
-const emptyCart = () => ({ saleId: uuidv7(), lines: [] as CartLine[], discount: null, customerName: "" });
+const emptyCart = () => ({ saleId: uuidv7(), lines: [] as CartLine[], discount: null, customerName: "", customer: null });
 
 const updateLine = (lines: CartLine[], key: string, patch: Partial<CartLine>) => lines.map((line) => (line.key === key ? { ...line, ...patch } : line));
 
@@ -55,13 +58,14 @@ export const useCartStore = create<CartState>()((set, get) => ({
     set((s) => ({ lines: s.lines.map((line) => ({ ...line, item: items.find((item) => item.id === line.item.id) ?? line.item })) })),
   setDiscount: (discount) => set({ discount }),
   setCustomerName: (customerName) => set({ customerName }),
+  setCustomer: (customer) => set({ customer }),
   clear: () => set(emptyCart()),
 
   loadHeld: (terminalId) => set({ held: loadHeldCarts(terminalId) }),
   hold: (terminalId, cashierName, label) => {
-    const { lines, discount, customerName, held } = get();
+    const { lines, discount, customerName, customer, held } = get();
     if (lines.length === 0) return false;
-    const cart: HeldCart = { id: uuidv7(), label, heldAt: new Date().toISOString(), cashierName, lines, discount, customerName };
+    const cart: HeldCart = { id: uuidv7(), label, heldAt: new Date().toISOString(), cashierName, lines, discount, customerName, customer };
     const next = [...held, cart];
     if (!saveHeldCarts(terminalId, next)) return false;
     set({ ...emptyCart(), held: next });
@@ -74,7 +78,7 @@ export const useCartStore = create<CartState>()((set, get) => ({
     const next = held.filter((c) => c.id !== id);
     saveHeldCarts(terminalId, next);
     // A resumed cart becomes a new sale ID: it was never submitted.
-    set({ saleId: uuidv7(), lines: cart.lines, discount: cart.discount, customerName: cart.customerName, held: next });
+    set({ saleId: uuidv7(), lines: cart.lines, discount: cart.discount, customerName: cart.customerName, customer: cart.customer ?? null, held: next });
   },
   discardHeld: (terminalId, id) => {
     const next = get().held.filter((c) => c.id !== id);

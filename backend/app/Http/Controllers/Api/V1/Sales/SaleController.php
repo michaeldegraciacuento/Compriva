@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Sales;
 
 use App\Domain\Cashiering\Services\Terminals;
+use App\Domain\Customers\Actions\AddCustomerToSale;
 use App\Domain\Sales\Actions\ProcessReturn;
 use App\Domain\Sales\Actions\VoidSale;
 use App\Domain\Sales\Enums\ReturnItemCondition;
@@ -20,7 +21,7 @@ use Illuminate\Validation\Rule;
 
 /**
  * Completed sales: history, receipt, reprint, void and returns.
- * Sales are never edited or deleted (docs/point-of-sale.md §7).
+ * Sales are never edited or deleted (docs/README.md).
  */
 class SaleController extends Controller
 {
@@ -78,6 +79,19 @@ class SaleController extends Controller
         ]);
 
         return SaleResource::receipt($void->execute($sale, $request->user(), $data['reason'], $data['approval'] ?? null));
+    }
+
+    /** A customer forgotten at checkout: recorded beside the sale, which itself never changes. Needs customers.manage. */
+    public function addCustomer(Request $request, Sale $sale, AddCustomerToSale $add): SaleResource
+    {
+        $this->authorizeAny($request, ['sales.view', 'pos.access']);
+        $data = $request->validate([
+            'customer_id' => ['required', 'uuid'],
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+        $add->execute($request->user(), $sale, $data['customer_id'], $data['reason'] ?? null);
+
+        return SaleResource::receipt($sale->refresh());
     }
 
     public function storeReturn(Request $request, Sale $sale, ProcessReturn $process, Terminals $terminals): JsonResponse

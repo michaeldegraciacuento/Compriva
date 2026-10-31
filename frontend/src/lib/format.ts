@@ -4,7 +4,7 @@ import type { IsoDateTime, Money, Quantity } from "@/types/common";
 
 /**
  * Display formatting only. These functions never feed a calculation: money
- * and quantities stay decimal strings everywhere else (docs/database.md D4).
+ * and quantities stay decimal strings everywhere else (docs/README.md D4).
  */
 
 export { formatMoney } from "./money";

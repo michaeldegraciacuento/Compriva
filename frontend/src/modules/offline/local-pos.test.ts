@@ -5,7 +5,7 @@ import { ApiError } from "@/lib/api";
 
 import { addItem } from "../pos/cart";
 import type { CartLine } from "../pos/types";
-import { snapshotStatements } from "./catalog-cache";
+import { changeStatements, snapshotStatements } from "./catalog-cache";
 import { LocalPos, type LocalUser } from "./local-pos";
 import { META, setMeta } from "./meta";
 import { CORNED_BEEF, JUAN, MARIA_ID, snapshot, verifyPin } from "./testing/fixtures";
@@ -162,5 +162,41 @@ describe("local checkout (offline)", () => {
     await pos.openShift("0");
     user = { id: MARIA_ID, name: "Maria Santos", permissions: ["pos.access"] };
     expect((await rejection(sell(cart("1"), [{ method: "cash", amount: "50" }]))).code).toBe("SHIFT_REQUIRED");
+  });
+});
+
+describe("customers on the terminal", () => {
+  const LOLA = { id: "c-lola", code: "C-0001", name: "Lola Carmen", type: "senior_citizen" as const, phone: "0920 555 0404", tin: null, address: null, id_number: "SC-QC-2019" };
+  const ROSA = { id: "c-rosa", code: "C-0002", name: "Aling Rosa Store", type: "business" as const, phone: null, tin: "123-456-789-000", address: "Brgy. Pinyahan, QC", id_number: null };
+
+  beforeEach(async () => {
+    await db.transaction(snapshotStatements(snapshot({ customers: [LOLA, ROSA] }), 11, now));
+  });
+
+  it("finds cached customers by name, phone, code or ID number, and follows changes", async () => {
+    expect((await pos.customers("")).map((c) => c.name)).toEqual(["Aling Rosa Store", "Lola Carmen"]);
+    expect((await pos.customers("0404")).map((c) => c.id)).toEqual(["c-lola"]);
+    expect((await pos.customers("sc-qc")).map((c) => c.id)).toEqual(["c-lola"]);
+    expect((await pos.customers("c-0002")).map((c) => c.id)).toEqual(["c-rosa"]);
+    expect((await pos.customers("456-789")).map((c) => c.id)).toEqual(["c-rosa"]);
+
+    await db.transaction(changeStatements([
+      { entity: "customer", op: "upsert", id: "c-lola", data: { ...LOLA, name: "Carmen Villanueva" } },
+      { entity: "customer", op: "delete", id: "c-rosa" },
+    ], 12, now));
+    expect((await pos.customers("")).map((c) => c.name)).toEqual(["Carmen Villanueva"]);
+  });
+
+  it("an offline sale keeps the customer's details on the receipt and sends the customer to the server", async () => {
+    await pos.openShift("0");
+    const sale = await sell(cart("1"), [{ method: "cash", amount: "50" }], { customer: ROSA, customerName: ROSA.name });
+    expect(sale).toMatchObject({ customer_id: "c-rosa", customer_name: "Aling Rosa Store", customer_tin: "123-456-789-000", customer_address: "Brgy. Pinyahan, QC" });
+
+    const payload = JSON.parse((await outbox()).at(-1)!.payload);
+    expect(payload).toMatchObject({ customer_id: "c-rosa", customer_name: "Aling Rosa Store" });
+
+    // A senior citizen: no business address on the receipt.
+    const other = await sell(cart("1"), [{ method: "cash", amount: "50" }], { customer: LOLA });
+    expect(other).toMatchObject({ customer_id: "c-lola", customer_name: "Lola Carmen", customer_address: null });
   });
 });

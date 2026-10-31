@@ -1,6 +1,7 @@
 "use client";
 
-import { Ban, Printer, Undo2 } from "lucide-react";
+import { Ban, Undo2, UserPlus } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
@@ -17,21 +18,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { toApiError } from "@/lib/api";
 import { formatDate, formatMoney, formatQuantity, formatTime } from "@/lib/format";
 import { useApiQuery } from "@/lib/use-api-query";
+import { notify } from "@/lib/notify";
 import { useCan } from "@/modules/auth/hooks";
+import { AuditTrail } from "@/modules/system/components/audit-trail";
 import { fetchSaleAnywhere, voidSaleAnywhere } from "@/modules/offline/runtime";
-import { fetchPaymentMethods, reprintSale, returnItems, type ReturnInput } from "@/modules/pos/api";
+import { addCustomerToSale, fetchPaymentMethods, reprintSale, returnItems, type ReturnInput } from "@/modules/pos/api";
+import { CustomerPicker } from "@/modules/pos/components/customer-picker";
 import { ApprovalFields, emptyApproval, hasApproval } from "@/modules/pos/components/approval-fields";
-import { methodName, printReceipt, Receipt } from "@/modules/pos/components/receipt";
+import { PrintControls } from "@/modules/hardware/components/print-controls";
+import { useHardware } from "@/modules/hardware/settings";
+import { methodName, Receipt } from "@/modules/pos/components/receipt";
 import { formatUnits, parse, ZERO } from "@/modules/pos/fixed-point";
-import type { Approval, Sale } from "@/modules/pos/types";
+import type { Approval, PosCustomer, Sale } from "@/modules/pos/types";
 
 /** One sale: its receipt, and reprint, void and return. */
 export function SaleViewPage() {
   const id = useSearchParams().get("id") ?? "";
   const found = useApiQuery(["sale", id], () => fetchSaleAnywhere(id));
   const canReprint = useCan("sales.reprint");
-  const [action, setAction] = useState<"void" | "return" | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const canViewCustomers = useCan("customers.view");
+  const canManageCustomers = useCan("customers.manage");
+  const paper = useHardware((s) => s.settings.paper);
+  const [action, setAction] = useState<"void" | "return" | "customer" | null>(null);
 
   if (found.error) return <Alert variant="destructive"><AlertDescription>{found.error.message}</AlertDescription></Alert>;
   if (!found.data) return <Skeleton className="h-96" aria-busy="true" />;
@@ -40,14 +48,6 @@ export function SaleViewPage() {
   const local = found.data.local;
   const returnable = data.status === "completed" && (data.items ?? []).some((item) => parse(item.quantity) > parse(item.returned_quantity ?? "0"));
 
-  const reprint = async () => {
-    try {
-      if (!local) await reprintSale(data.id); // recorded in the audit log (local receipts print straight away)
-      printReceipt();
-    } catch (caught) {
-      setMessage(toApiError(caught).message);
-    }
-  };
 
   return (
     <div className="grid gap-6">
@@ -56,7 +56,6 @@ export function SaleViewPage() {
         description={`${formatDate(data.occurred_at)} ${formatTime(data.occurred_at)} · ${data.terminal?.code} · ${data.cashier?.name}`}
         actions={
           <>
-            {canReprint && <Button variant="outline" onClick={() => void reprint()}><Printer aria-hidden /> Reprint</Button>}
             {returnable && !local && <Button variant="outline" onClick={() => setAction("return")}><Undo2 aria-hidden /> Return items</Button>}
             {data.status === "completed" && (data.returns ?? []).length === 0 && (
               <Button variant="destructive" onClick={() => setAction("void")}><Ban aria-hidden /> Void sale</Button>
@@ -64,16 +63,35 @@ export function SaleViewPage() {
           </>
         }
       />
-      {message && <Alert><AlertDescription>{message}</AlertDescription></Alert>}
 
       <div className="grid items-start gap-6 lg:grid-cols-[22rem_1fr]">
-        <Receipt sale={data} />
+        <div className="grid content-start gap-3">
+          <Receipt sale={data} paper={paper} />
+          {/* Reprints are always possible; online ones are recorded in the audit log first. */}
+          {canReprint && <PrintControls sale={data} reprint onReprint={local ? undefined : async () => { await reprintSale(data.id); notify.info("Reprint recorded", data.receipt_number); }} />}
+        </div>
         <div className="grid gap-6">
           <Panel title="Status">
             <div className="grid gap-2 text-sm">
               <div>{data.status === "voided" ? <StatusBadge tone="danger">Voided</StatusBadge> : <StatusBadge tone="success">Completed</StatusBadge>}</div>
               {data.void && <p>Voided {formatDate(data.void.voided_at)} {formatTime(data.void.voided_at)}, approved by {data.void.voided_by}. Reason: {data.void.reason}</p>}
               <p className="text-muted-foreground">Paid {formatMoney(data.amount_paid)} with {data.payments?.map((p) => methodName(p.method)).join(" + ")}.</p>
+              {data.customer_id && canViewCustomers && (
+                <p>Customer: <Link href={`/customers/view?id=${data.customer_id}`} className="font-medium hover:underline">{data.customer_name ?? "View customer"}</Link></p>
+              )}
+              {data.customer_added && (
+                <p>
+                  Customer (added later by {data.customer_added.added_by}, {formatDate(data.customer_added.added_at)}):{" "}
+                  {canViewCustomers ? <Link href={`/customers/view?id=${data.customer_added.customer_id}`} className="font-medium hover:underline">{data.customer_added.customer_name}</Link> : data.customer_added.customer_name}
+                  <span className="block text-xs text-muted-foreground">Not on the printed receipt. The sale counts in the customer&apos;s purchase history.</span>
+                </p>
+              )}
+              {!data.customer_id && !data.customer_added && data.status === "completed" && !local && canManageCustomers && (
+                <div>
+                  <Button size="sm" variant="outline" onClick={() => setAction("customer")}><UserPlus aria-hidden /> Add customer</Button>
+                  <span className="mt-1 block text-xs text-muted-foreground">Forgot to choose the customer? Add them to this sale&apos;s record.</span>
+                </div>
+              )}
             </div>
           </Panel>
           {(data.returns ?? []).length > 0 && (
@@ -91,12 +109,69 @@ export function SaleViewPage() {
               </ul>
             </Panel>
           )}
+          {!local && <AuditTrail type="sale" id={data.id} version={`${data.status}-${data.customer_added?.added_at ?? ""}-${data.returns?.length ?? 0}`} />}
         </div>
       </div>
 
-      {action === "void" && <VoidDialog sale={data} local={local} onClose={() => setAction(null)} onDone={async (text) => { setAction(null); setMessage(text); await found.reload(); }} />}
-      {action === "return" && <ReturnDialog sale={data} onClose={() => setAction(null)} onDone={async (text) => { setAction(null); setMessage(text); await found.reload(); }} />}
+      {action === "void" && <VoidDialog sale={data} local={local} onClose={() => setAction(null)} onDone={async (text) => { setAction(null); notify.success("Sale voided", text); await found.reload(); }} />}
+      {action === "return" && <ReturnDialog sale={data} onClose={() => setAction(null)} onDone={async (text) => { setAction(null); notify.success("Return recorded", text); await found.reload(); }} />}
+      {action === "customer" && <AddCustomerDialog sale={data} onClose={() => setAction(null)} onDone={async (text) => { setAction(null); notify.success("Customer added", text); await found.reload(); }} />}
     </div>
+  );
+}
+
+/**
+ * A customer forgotten at checkout. Completed sales never change, so the
+ * customer is recorded beside the sale: it joins their purchase history, the
+ * printed receipt stays as it is.
+ */
+function AddCustomerDialog({ sale, onClose, onDone }: { sale: Sale; onClose: () => void; onDone: (message: string) => Promise<void> }) {
+  const [customer, setCustomer] = useState<PosCustomer | null>(null);
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    if (!customer) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await addCustomerToSale(sale.id, customer.id, reason.trim() || null);
+      await onDone(`${customer.name} was added to sale ${sale.receipt_number}.`);
+    } catch (caught) {
+      setError(toApiError(caught).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add customer to {sale.receipt_number}</DialogTitle>
+          <DialogDescription>
+            The sale counts in the customer&apos;s purchase history. The sale itself and its printed receipt do not change.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <CustomerPicker value={customer} onChange={setCustomer} />
+          <div className="grid gap-1.5">
+            <Label htmlFor="add-customer-reason">Note (optional)</Label>
+            <Input id="add-customer-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={255} placeholder="e.g. Forgot to choose the customer" />
+          </div>
+          <Alert>
+            <AlertDescription>
+              A senior citizen or PWD discount, or a business TIN on the receipt, cannot be added afterwards: void this sale and ring it up again with the customer.
+            </AlertDescription>
+          </Alert>
+          {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+        </div>
+        <DialogFooter>
+          <Button onClick={() => void save()} disabled={!customer || busy}>{busy ? "Saving…" : "Add customer"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

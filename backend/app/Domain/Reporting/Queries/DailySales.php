@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Sales figures per business day, the basis of the period, profit and COGS
- * reports. Definitions (docs/purchasing-cashier-reports.md §3):
+ * reports. Definitions (docs/README.md):
  *
  *   net sales   = Σ grand total of completed sales (voided sales excluded)
  *   refunds     = Σ returns processed that day

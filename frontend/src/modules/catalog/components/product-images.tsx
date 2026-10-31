@@ -9,6 +9,7 @@ import { Panel } from "@/components/panel";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { useCan } from "@/modules/auth/hooks";
+import { notify } from "@/lib/notify";
 
 import { deleteImage, makePrimaryImage, uploadImage } from "../api";
 import type { Product } from "../types";
@@ -36,6 +37,7 @@ export function ProductImages({ product, onChanged }: { product: Product; onChan
     setBusy(true);
     try {
       for (const file of list) await uploadImage(product.id, file);
+      notify.success(list.length === 1 ? "Photo uploaded" : `${list.length} photos uploaded`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Upload failed.");
     } finally {
@@ -82,7 +84,7 @@ export function ProductImages({ product, onChanged }: { product: Product; onChan
                     description="The file is removed from the server."
                     confirmLabel="Delete"
                     destructive
-                    onConfirm={async () => { await deleteImage(image.id); await onChanged(); }}
+                    onConfirm={async () => { await deleteImage(image.id); notify.success("Photo removed"); await onChanged(); }}
                   />
                 )}
               </div>

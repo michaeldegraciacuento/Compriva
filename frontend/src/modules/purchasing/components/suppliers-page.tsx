@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toApiError } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
 import { useApiQuery } from "@/lib/use-api-query";
+import { notify } from "@/lib/notify";
 import { useCan } from "@/modules/auth/hooks";
 
 import { createSupplier, fetchSuppliers, updateSupplier, type SupplierInput } from "../api";
@@ -124,6 +125,7 @@ function SupplierDialog({ supplier, onClose, onSaved }: { supplier: Supplier | n
     try {
       if (supplier) await updateSupplier(supplier.id, data);
       else await createSupplier(data);
+      notify.success(supplier ? "Supplier saved" : "Supplier added", String(data.name ?? ""));
       await onSaved();
       onClose();
     } catch (caught) {

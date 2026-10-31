@@ -42,6 +42,7 @@ class CheckoutRequest extends FormRequest
             'payments.*.reference' => ['nullable', 'string', 'max:100'],
             'expected_total' => ['nullable', 'decimal:0,2', 'min:0'],
             'customer_name' => ['nullable', 'string', 'max:255'],
+            'customer_id' => ['nullable', 'uuid'],
             'notes' => ['nullable', 'string', 'max:500'],
             'approval' => ['nullable', 'array'],
             'approval.login' => ['nullable', 'string', 'max:100'],

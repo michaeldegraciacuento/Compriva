@@ -1,5 +1,5 @@
 {
-  "description": "Worked checkout calculations, checked by hand. Both the backend CartCalculator (PHP) and the POS cart calculator (TypeScript) must produce exactly these results. Amounts are pesos with 2 decimals; quantities, prices and rates may have up to 4. See docs/point-of-sale.md section 3.",
+  "description": "Worked checkout calculations, checked by hand. Both the backend CartCalculator (PHP) and the POS cart calculator (TypeScript) must produce exactly these results. Amounts are pesos with 2 decimals; quantities, prices and rates may have up to 4. See docs/README.md",
   "cases": [
     {
       "name": "single VAT-inclusive item",

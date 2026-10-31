@@ -2,6 +2,7 @@ mod device;
 mod local_db;
 mod local_tx;
 mod offline_auth;
+mod printing;
 mod secure_store;
 
 use tauri::{Manager, State};
@@ -35,6 +36,22 @@ async fn verify_pin(pin: String, hash: String) -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(move || offline_auth::verify_pin(&pin, &hash))
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Windows printers with their status (see `printing.rs`).
+#[tauri::command]
+async fn list_printers() -> Result<Vec<printing::PrinterInfo>, String> {
+    tauri::async_runtime::spawn_blocking(printing::list_printers)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Sends raw ESC/POS bytes to a printer (receipts, cash drawer pulse).
+#[tauri::command]
+async fn print_raw(printer: String, data: Vec<u8>, job_name: String) -> Result<u32, String> {
+    tauri::async_runtime::spawn_blocking(move || printing::print_raw(&printer, &data, &job_name))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// Runs several SQL statements in one transaction (see `local_tx.rs`).
@@ -80,7 +97,9 @@ pub fn run() {
             secure_store_set,
             secure_store_delete,
             verify_pin,
-            local_transaction
+            local_transaction,
+            list_printers,
+            print_raw
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");

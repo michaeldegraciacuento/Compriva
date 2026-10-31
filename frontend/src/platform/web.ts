@@ -6,7 +6,7 @@ let fallbackId: string | null = null;
 
 /**
  * A browser's terminal identity: a random install ID kept in local storage, so
- * a browser can be registered as a checkout terminal (docs/point-of-sale.md §2).
+ * a browser can be registered as a checkout terminal (docs/README.md).
  * Clearing site data gives the browser a new ID, and it must be registered again.
  */
 function browserIdentity(): DeviceIdentity {
@@ -32,4 +32,5 @@ export const webPlatform: Platform = {
   getAccessToken: async () => null,
   getLocalDatabase: async () => null,
   terminal: null,
+  printers: null,
 };

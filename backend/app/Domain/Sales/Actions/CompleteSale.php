@@ -3,6 +3,7 @@
 namespace App\Domain\Sales\Actions;
 
 use App\Domain\Cashiering\Enums\ShiftStatus;
+use App\Domain\Customers\SaleCustomer;
 use App\Domain\Inventory\Services\StockLedger;
 use App\Domain\Sales\Enums\SaleStatus;
 use App\Domain\Sales\Pricing\FixedPoint;
@@ -62,7 +63,12 @@ class CompleteSale
             throw new BusinessException('Open your shift on this terminal before selling.', ErrorCode::ShiftRequired, 409);
         }
 
-        $priced = $this->pricer->price($input['lines'], $input['discount'] ?? null);
+        // The customer (optional): a snapshot is stored on the sale; an SC/PWD customer's ID fills the discount.
+        $customer = SaleCustomer::resolve($input['customer_id'] ?? null, $input['customer_name'] ?? null);
+        $input['discount'] = SaleCustomer::fillIdNumber($input['discount'] ?? null, $customer['customer']);
+        $input['customer'] = $customer['columns'];
+
+        $priced = $this->pricer->price($input['lines'], $input['discount']);
         $total = $priced['totals']['grand_total'];
 
         $approver = null;
@@ -156,7 +162,7 @@ class CompleteSale
             'receipt_number' => sprintf('%s-%06d', $device->code, $sequence),
             'receipt_sequence' => $sequence,
             'status' => SaleStatus::Completed,
-            'customer_name' => $input['customer_name'] ?? null,
+            ...$input['customer'],
             'customer_id_number' => $discount['customer_id_number'] ?? null,
             'gross_amount' => $totals['gross_amount'],
             'discount_total' => $totals['discount_total'],

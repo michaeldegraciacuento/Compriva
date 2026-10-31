@@ -11,6 +11,7 @@ use App\Domain\Cashiering\Services\Terminals;
 use App\Domain\Catalog\Enums\PriceTier;
 use App\Domain\Sales\Actions\CompleteSale;
 use App\Domain\Sales\Services\CartPricer;
+use App\Domain\Settings\Settings;
 use App\Domain\Sync\Queries\TerminalData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\Sales\CheckoutRequest;
@@ -34,7 +35,7 @@ use Illuminate\Validation\Rule;
 /**
  * Point of sale: terminal, shift, sellable items, quotes and checkout.
  * All routes need pos.access; the terminal comes from X-Compriva-Device
- * (docs/point-of-sale.md).
+ * (docs/README.md).
  */
 class PosController extends Controller
 {
@@ -56,6 +57,7 @@ class PosController extends Controller
             // Categories that have something to sell, for browsing (cashiers cannot read the catalog API).
             'categories' => $data->categories(),
             'receipt' => SaleResource::receiptSettings(),
+            'pos' => ['max_cash_in_drawer' => (string) Settings::get('pos', 'max_cash_in_drawer')],
         ]]);
     }
 
@@ -133,6 +135,20 @@ class PosController extends Controller
         $record->execute($shift, $request->user(), CashMovementType::from($data['type']), (string) $data['amount'], $data['reason'], $data['approval'] ?? null);
 
         return response()->json(['data' => PosResources::shift($shift->refresh(), $summary->for($shift))], 201);
+    }
+
+    /**
+     * Records that the cash drawer was opened without a sale ("no sale"). The
+     * drawer itself is opened by the terminal through its receipt printer; this
+     * only puts it in the audit log (pos.open_drawer).
+     */
+    public function drawerOpened(Request $request, AuditLogger $audit): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:255']]);
+        $terminal = $this->terminals->require($request);
+        $audit->record('cash_drawer.opened', $terminal, new: ['reason' => $data['reason'], 'shift_id' => $this->terminalShift($terminal)?->id], device: $terminal);
+
+        return response()->json(['data' => ['recorded' => true]], 201);
     }
 
     /** Sellable items: search by name/code, an exact barcode scan, or browse a category. */

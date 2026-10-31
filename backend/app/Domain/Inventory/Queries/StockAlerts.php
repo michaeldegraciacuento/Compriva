@@ -2,6 +2,7 @@
 
 namespace App\Domain\Inventory\Queries;
 
+use App\Domain\Settings\Settings;
 use App\Models\InventoryLevel;
 use App\Models\Setting;
 use App\Models\StockBatch;
@@ -24,7 +25,7 @@ class StockAlerts
     public function get(int $limit = self::LIMIT): array
     {
         $today = Carbon::now(config('compriva.timezone'))->startOfDay();
-        $windowDays = (int) (Setting::whereNull('store_id')->where('group', 'inventory')->where('key', 'expiry_warning_days')->value('value') ?? 30);
+        $windowDays = (int) Settings::get('inventory', 'expiry_warning_days');
 
         $lowStock = InventoryLevel::query()
             ->join('product_skus', 'product_skus.id', '=', 'inventory_levels.product_sku_id')

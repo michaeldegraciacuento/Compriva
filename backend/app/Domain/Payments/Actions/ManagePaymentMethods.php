@@ -20,7 +20,7 @@ class ManagePaymentMethods
 {
     public const DISK = 'local';
 
-    /** Methods the store offers (docs/point-of-sale.md §5). */
+    /** Methods the store offers (docs/README.md). */
     public const ACCEPTED = ['cash', 'gcash', 'maya'];
 
     public function __construct(private readonly AuditLogger $audit) {}

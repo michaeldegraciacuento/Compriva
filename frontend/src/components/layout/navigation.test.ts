@@ -18,7 +18,7 @@ describe("role-based navigation", () => {
   it("shows a cashier Home and the selling modules only", () => {
     expect(labels(CASHIER)).toEqual([
       [null, ["Home"]],
-      ["Sell", ["Point of Sale", "Customers"]],
+      ["Sell", ["Point of Sale", "Customers", "Hardware"]],
     ]);
   });
 

@@ -2,7 +2,7 @@ import type { Session } from "./types";
 
 /**
  * UI-side permission checks. These only decide what to SHOW; the API checks
- * every permission again on the server (docs/authentication.md §5).
+ * every permission again on the server (docs/README.md).
  */
 export function can(session: Session | null, permission: string): boolean {
   return session?.permissions.includes(permission) ?? false;

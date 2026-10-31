@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Sales;
 
+use App\Models\AuditLog;
 use App\Models\CashierShift;
 use App\Models\Device;
 use App\Models\PaymentMethod;
@@ -158,6 +159,16 @@ class VoidReturnShiftTest extends PosTestCase
 
         // Cashiers cannot use the POS anywhere else.
         $this->assertErrorCode($this->actingAsUser($this->userWithRole('inventory_clerk'))->getJson('/api/v1/pos/terminal'), 403, 'FORBIDDEN');
+    }
+
+    public function test_opening_the_drawer_without_a_sale_is_audited_and_needs_permission(): void
+    {
+        $this->assertErrorCode($this->at($this->cashier)->postJson('/api/v1/pos/drawer-opened', ['reason' => 'Change for a customer']), 403, 'FORBIDDEN');
+
+        $this->at($this->manager)->postJson('/api/v1/pos/drawer-opened', ['reason' => 'Change for a customer'])->assertCreated();
+        $log = AuditLog::where('event', 'cash_drawer.opened')->sole();
+        $this->assertSame($this->manager->id, $log->user_id);
+        $this->assertSame('Change for a customer', $log->new_values['reason']);
     }
 
     public function test_gcash_and_maya_qr_codes_are_uploaded_by_a_manager_of_payment_methods(): void

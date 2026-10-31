@@ -16,10 +16,11 @@ import type { CachedItem } from "./types";
  * migrations), the real LocalPos and SyncEngine; only the HTTP transport is a
  * small fetch client. Run with: npm run test:sync
  *
- * Scenario: a new product with 20 in stock. Both terminals sync and get 9 each
- * (90% of 20, split in two). Both go offline; T-A sells its 9 and is refused the
- * 10th; T-B sells 4. Back online, both sync: 13 sold, 7 left, no conflicts,
- * every sale on the server exactly once even though T-A's first push "times out".
+ * Scenario: a new product with 20 in stock. Both terminals sync and end with
+ * equal shares (90% of 20 split between the syncing terminals). Both go
+ * offline; T-A sells its whole share and is refused one more; T-B sells all but
+ * one. Back online, both sync: every sale on the server exactly once (even
+ * though T-A's first push "times out"), stock exact, no conflicts.
  */
 const API = process.env.COMPRIVA_API_URL ?? "http://127.0.0.1:8000/api/v1";
 // `npm run test:sync` (vitest --mode sync) or COMPRIVA_SYNC_IT=1; skipped in the normal unit test run.
@@ -109,29 +110,32 @@ describe.skipIf(!run)("two desktop terminals, offline, against the real API", ()
     const a = await setUp("IT lane A");
     const b = await setUp("IT lane B");
 
-    // A syncs first and takes 90% (18). B joins and gets the 2 left; A is then told it holds
-    // more than its share and releases 9; B picks them up: 9 each.
-    expect((await a.engine.syncNow()).outcome).toBe("ok");
-    expect(await a.pos.available(skuId)).toBe(BigInt(18 * 10_000));
-    expect((await b.engine.syncNow()).outcome).toBe("ok");
+    // A syncs first and takes its share; B joins; A is told it holds more than its share and
+    // releases the excess; B picks it up. The shares end equal. (Other active desktop terminals,
+    // e.g. a real one set up on this computer, also count, so the share is read, not assumed.)
     expect((await a.engine.syncNow()).outcome).toBe("ok");
     expect((await b.engine.syncNow()).outcome).toBe("ok");
-    expect(await a.pos.available(skuId)).toBe(BigInt(9 * 10_000));
-    expect(await b.pos.available(skuId)).toBe(BigInt(9 * 10_000));
+    expect((await a.engine.syncNow()).outcome).toBe("ok");
+    expect((await b.engine.syncNow()).outcome).toBe("ok");
+    const shareA = Number((await a.pos.available(skuId)) / BigInt(10_000));
+    const shareB = Number((await b.pos.available(skuId)) / BigInt(10_000));
+    expect(shareA).toBe(shareB);
+    expect(shareA).toBeGreaterThanOrEqual(2);
+    expect(shareA * 2).toBeLessThanOrEqual(18); // never more than 90% of the 20 in stock
 
     const [itemA] = (await a.pos.catalog({ q: "IT Sync Sardines" })).filter((i) => i.id === skuId) as CachedItem[];
-    const sell = (pos: LocalPos, id: string, quantity: string) =>
-      pos.checkout({ id, lines: [{ ...addItem([], itemA)[0], quantity }], discount: null, payments: [{ method: "cash", amount: String(25 * Number(quantity)) }], expectedTotal: "" });
+    const sell = (pos: LocalPos, id: string, quantity: number) =>
+      pos.checkout({ id, lines: [{ ...addItem([], itemA)[0], quantity: String(quantity) }], discount: null, payments: [{ method: "cash", amount: String(25 * quantity) }], expectedTotal: "" });
 
-    // Offline.
+    // Offline: A sells its whole share in two sales and is refused one more; B sells all but one.
     a.net.online = false;
     b.net.online = false;
     await a.pos.openShift("500");
     await b.pos.openShift("500");
-    await sell(a.pos, crypto.randomUUID(), "5");
-    await sell(a.pos, crypto.randomUUID(), "4");
-    await expect(sell(a.pos, crypto.randomUUID(), "1")).rejects.toMatchObject({ code: "INSUFFICIENT_STOCK" });
-    await sell(b.pos, crypto.randomUUID(), "4");
+    await sell(a.pos, crypto.randomUUID(), Math.ceil(shareA / 2));
+    await sell(a.pos, crypto.randomUUID(), Math.floor(shareA / 2));
+    await expect(sell(a.pos, crypto.randomUUID(), 1)).rejects.toMatchObject({ code: "INSUFFICIENT_STOCK" });
+    await sell(b.pos, crypto.randomUUID(), shareB - 1);
     expect((await a.engine.syncNow()).outcome).toBe("offline");
     expect((await a.engine.refreshStatus()).pending).toBe(3);
 
@@ -142,19 +146,27 @@ describe.skipIf(!run)("two desktop terminals, offline, against the real API", ()
     expect((await a.engine.syncNow()).outcome).toBe("offline");
     const retry = await a.engine.syncNow();
     expect(retry).toMatchObject({ outcome: "ok", rejected: 0 });
-    // B's shift and sale, plus a release: after the sales it holds more than its new share.
     expect(await b.engine.syncNow()).toMatchObject({ outcome: "ok", rejected: 0 });
 
-    // The server: 13 sold, 7 left, nothing flagged.
+    // The server: every sale counted exactly once, nothing flagged.
+    const sold = shareA + shareB - 1;
     const stock = await call<{ quantity_on_hand: string }[]>("GET", `/inventory/stock?q=${encodeURIComponent("IT Sync Sardines")}&include_inactive=1`, owner);
     const level = (stock as unknown as { sku_id: string; quantity_on_hand: string }[]).find((s) => s.sku_id === skuId)!;
-    expect(level.quantity_on_hand).toBe("7.0000");
+    expect(level.quantity_on_hand).toBe(`${20 - sold}.0000`);
     const conflicts = await call<{ terminal: string }[]>("GET", "/sync/conflicts", owner);
     const terminals = await call<{ id: string; code: string; operations_applied: number }[]>("GET", "/terminals", owner);
     const ours = terminals.filter((t) => devices.includes(t.id));
     expect(conflicts.filter((c) => ours.some((t) => t.code === c.terminal))).toHaveLength(0);
-    // Every operation applied once: A's shift + 2 sales + release, B's shift + sale (+ releases).
-    expect(ours.every((t) => t.operations_applied >= 3)).toBe(true);
+    // Every operation applied: A's shift + 2 sales (+ releases), B's shift + sale (+ releases).
+    const applied = (id: string) => ours.find((t) => t.id === id)!.operations_applied;
+    expect(applied(devices[0])).toBeGreaterThanOrEqual(3);
+    expect(applied(devices[1])).toBeGreaterThanOrEqual(2);
+
+    // Close both shifts and sync, so the test leaves no open shift behind.
+    await a.pos.closeShift("700");
+    await b.pos.closeShift("600");
+    expect((await a.engine.syncNow()).rejected).toBe(0);
+    expect((await b.engine.syncNow()).rejected).toBe(0);
 
     // Each terminal's cursor moved on; its allocation was re-pulled from the server.
     expect(Number(await getMeta(a.db, META.cursor))).toBeGreaterThan(0);

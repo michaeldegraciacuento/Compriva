@@ -4,10 +4,10 @@ namespace App\Domain\Inventory\Services;
 
 use App\Domain\Devices\Enums\DeviceStatus;
 use App\Domain\Inventory\Enums\AllocationEventType;
+use App\Domain\Settings\Settings;
 use App\Models\Device;
 use App\Models\InventoryLevel;
 use App\Models\ProductSku;
-use App\Models\Setting;
 use App\Models\StockAllocationEvent;
 use App\Models\SyncCursor;
 use App\Models\TerminalStockAllocation;
@@ -17,7 +17,7 @@ use App\Support\Errors\ErrorCode;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Terminal stock allocations (docs/offline-sync.md §6).
+ * Terminal stock allocations (docs/README.md).
  *
  * A desktop terminal sells offline only from the stock allocated to it, so two
  * offline terminals can never sell the same units. Allocated stock is reserved
@@ -49,7 +49,7 @@ class StockAllocations
     public function topUp(Device $device, ?array $skuIds = null): array
     {
         $terminals = $this->syncingTerminals($device);
-        $share = (string) max(0, min(100, (int) (Setting::whereNull('store_id')->where('group', 'pos')->where('key', 'allocation_share_percent')->value('value') ?? 90)));
+        $share = (string) max(0, min(100, (int) Settings::get('pos', 'allocation_share_percent')));
         $skus = ProductSku::query()
             ->with('product', 'baseUnit')
             ->where('is_active', true)

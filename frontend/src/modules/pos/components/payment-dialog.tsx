@@ -92,6 +92,7 @@ export function PaymentDialog({ open, onOpenChange, priced, methods, onPaid, onP
         payments: freeSale ? [] : all,
         expectedTotal: total,
         customerName: cart.customerName,
+        customer: cart.customer,
         approval: askApproval.length > 0 && hasApproval(approval) ? approval : null,
       });
       onPaid(sale);

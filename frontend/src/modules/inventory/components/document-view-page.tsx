@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate, formatMoney, formatQuantity, formatTime } from "@/lib/format";
 import { useApiQuery } from "@/lib/use-api-query";
+import { notify } from "@/lib/notify";
 import { useCan, useSession } from "@/modules/auth/hooks";
 
 import { approveDocument, fetchDocument, rejectDocument } from "../api";
@@ -60,7 +61,7 @@ function DocumentView({ id }: { id: string }) {
                 title="Discard this draft?"
                 description="The draft is deleted. Stock was never changed by it."
                 confirmLabel="Discard" destructive
-                onConfirm={async () => { await rejectDocument(d.id); router.push("/inventory/documents"); }}
+                onConfirm={async () => { await rejectDocument(d.id); notify.success("Document discarded", d.number); router.push("/inventory/documents"); }}
               />
             )}
             {canApprove && (
@@ -69,7 +70,7 @@ function DocumentView({ id }: { id: string }) {
                 title={`Post ${d.number}?`}
                 description="Stock levels change now and a movement is recorded for every line. Posted documents cannot be edited."
                 confirmLabel="Approve & post"
-                onConfirm={async () => { await approveDocument(d.id); await doc.reload(); }}
+                onConfirm={async () => { await approveDocument(d.id); notify.success("Approved and posted", `${d.number}: stock updated.`); await doc.reload(); }}
               />
             )}
           </>

@@ -6,7 +6,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Domain 9 — Terminal stock allocations (docs/offline-sync.md §6).
+ * Domain 9 — Terminal stock allocations (docs/README.md).
  *
  * A terminal may sell offline only from the quantity allocated to it, so two
  * offline terminals can never sell the same stock. The allocation row is the

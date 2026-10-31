@@ -2,6 +2,7 @@
 
 namespace App\Domain\Identity\Queries;
 
+use App\Domain\Settings\Settings;
 use App\Models\User;
 
 /**
@@ -11,7 +12,7 @@ use App\Models\User;
  *
  * The snapshot expires after COMPRIVA_SYNC_MAX_OFFLINE_HOURS; terminals must
  * refresh it to keep offline sign-in working, and suspended users disappear
- * from it at the next refresh (docs/authentication.md §4).
+ * from it at the next refresh (docs/README.md).
  */
 class TerminalCashiers
 {
@@ -36,7 +37,7 @@ class TerminalCashiers
                 'updated_at' => $user->updated_at?->toIso8601ZuluString(),
             ])->values()->all(),
             'generated_at' => now()->toIso8601ZuluString(),
-            'valid_until' => now()->addHours((int) config('compriva.sync.max_offline_hours'))->toIso8601ZuluString(),
+            'valid_until' => now()->addHours((int) Settings::get('sync', 'max_offline_hours'))->toIso8601ZuluString(),
         ];
     }
 }
