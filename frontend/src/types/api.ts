@@ -1,5 +1,5 @@
 /**
- * Wire format of the Compriva API (docs/api-conventions.md).
+ * Wire format of the Compriva API (docs/README.md).
  * Field names mirror the API exactly (snake_case); there is no case conversion layer.
  */
 

@@ -1,6 +1,6 @@
 import type { CashierSnapshot } from "@/modules/auth/types";
 
-import type { PaymentMethod, PosItem, PresetDiscount, ReceiptSettings, Terminal } from "../pos/types";
+import type { PaymentMethod, PosCustomer, PosItem, PresetDiscount, ReceiptSettings, Terminal } from "../pos/types";
 
 /** A sellable item as cached on the terminal: the POS item plus its barcodes. */
 export interface CachedItem extends PosItem {
@@ -10,7 +10,8 @@ export interface CachedItem extends PosItem {
 export interface TerminalSettings {
   receipt: ReceiptSettings;
   store: { name: string; legal_name: string | null; tin: string | null; address: string | null; phone: string | null; is_vat_registered: boolean; timezone: string } | null;
-  pos: { allow_over_allocation: boolean; max_offline_hours: number };
+  /** max_cash_in_drawer: missing in snapshots from before the setting was synced. */
+  pos: { allow_over_allocation: boolean; max_offline_hours: number; max_cash_in_drawer?: string };
 }
 
 export interface Allocation {
@@ -25,6 +26,8 @@ export interface Snapshot {
   payment_methods: PaymentMethod[];
   discounts: PresetDiscount[];
   cashiers: CashierSnapshot;
+  /** Active customers (servers before customers were cached send none). */
+  customers?: PosCustomer[];
   settings: TerminalSettings;
   allocations: Allocation[];
 }
@@ -37,7 +40,9 @@ export type Change =
   | { entity: "payment_methods"; op: "replace"; data: PaymentMethod[] }
   | { entity: "discounts"; op: "replace"; data: PresetDiscount[] }
   | { entity: "settings"; op: "replace"; data: TerminalSettings }
-  | { entity: "allocation"; op: "upsert"; id: string; data: Allocation };
+  | { entity: "allocation"; op: "upsert"; id: string; data: Allocation }
+  | { entity: "customer"; op: "upsert"; id: string; data: PosCustomer }
+  | { entity: "customer"; op: "delete"; id: string };
 
 export type PullResponse =
   | { mode: "snapshot"; cursor: number; has_more: false; server_time: string; snapshot: Snapshot }

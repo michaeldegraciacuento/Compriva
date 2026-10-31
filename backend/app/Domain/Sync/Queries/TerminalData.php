@@ -5,22 +5,23 @@ namespace App\Domain\Sync\Queries;
 use App\Domain\Catalog\Enums\PriceTier;
 use App\Domain\Identity\Queries\TerminalCashiers;
 use App\Domain\Sales\Enums\DiscountScope;
+use App\Domain\Settings\Settings;
 use App\Http\Resources\V1\Sales\PosResources;
 use App\Http\Resources\V1\Sales\SaleResource;
 use App\Models\Category;
+use App\Models\Customer;
 use App\Models\Device;
 use App\Models\Discount;
 use App\Models\PaymentMethod;
 use App\Models\ProductPrice;
 use App\Models\ProductSku;
-use App\Models\Setting;
 use App\Models\Store;
 use App\Models\TerminalStockAllocation;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
  * What a terminal caches to sell offline: sellable items with barcodes,
- * categories, payment methods, discounts, cashiers (offline PIN sign-in),
+ * categories, payment methods, discounts, customers, cashiers (offline PIN sign-in),
  * settings, and its own stock allocations. Used by the POS bootstrap and by
  * the sync pull (snapshot and changes), so both describe data the same way.
  */
@@ -92,6 +93,37 @@ class TerminalData
             ])->all();
     }
 
+    /**
+     * Active customers in the shape the POS customer picker uses (no notes,
+     * email or birth date: only what a sale needs). Inactive or deleted ones
+     * come back in `removed`.
+     *
+     * @param  ?list<string>  $ids  null = every customer
+     * @return array{customers: list<array<string, mixed>>, removed: list<string>}
+     */
+    public function customers(?array $ids = null): array
+    {
+        $customers = Customer::withTrashed()
+            ->when($ids !== null, fn (Builder $q) => $q->whereKey($ids), fn (Builder $q) => $q->whereNull('deleted_at')->where('is_active', true))
+            ->orderBy('name')->get();
+
+        $active = $customers->filter(fn (Customer $c) => $c->deleted_at === null && $c->is_active);
+
+        return [
+            'customers' => $active->map(fn (Customer $c) => self::customer($c))->values()->all(),
+            'removed' => $customers->diff($active)->modelKeys(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public static function customer(Customer $c): array
+    {
+        return [
+            'id' => $c->id, 'code' => $c->code, 'name' => $c->name, 'type' => $c->type->value,
+            'phone' => $c->phone, 'tin' => $c->tin, 'address' => $c->address, 'id_number' => $c->id_number,
+        ];
+    }
+
     /** @return array<string, mixed> Cashiers allowed on the POS, with PIN hashes, and how long the list is valid offline. */
     public function cashiers(): array
     {
@@ -102,7 +134,7 @@ class TerminalData
     public function settings(): array
     {
         $store = Store::query()->orderBy('created_at')->first();
-        $pos = Setting::whereNull('store_id')->where('group', 'pos')->pluck('value', 'key');
+        $pos = Settings::group('pos');
 
         return [
             'receipt' => SaleResource::receiptSettings(),
@@ -111,8 +143,9 @@ class TerminalData
                 'phone' => $store->phone, 'is_vat_registered' => $store->is_vat_registered, 'timezone' => $store->timezone,
             ],
             'pos' => [
-                'allow_over_allocation' => (bool) ($pos['allow_over_allocation'] ?? false),
-                'max_offline_hours' => (int) config('compriva.sync.max_offline_hours'),
+                'allow_over_allocation' => (bool) $pos['allow_over_allocation'],
+                'max_offline_hours' => (int) Settings::get('sync', 'max_offline_hours'),
+                'max_cash_in_drawer' => (string) $pos['max_cash_in_drawer'],
             ],
         ];
     }

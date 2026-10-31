@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Auth\SessionController;
 use App\Http\Controllers\Api\V1\Auth\TokenController;
 use App\Http\Controllers\Api\V1\Catalog\CatalogController;
 use App\Http\Controllers\Api\V1\Catalog\ProductController;
+use App\Http\Controllers\Api\V1\Customers\CustomerController;
 use App\Http\Controllers\Api\V1\Dashboard\StockAlertController;
 use App\Http\Controllers\Api\V1\Devices\DeviceController;
 use App\Http\Controllers\Api\V1\Identity\RoleController;
@@ -18,7 +19,9 @@ use App\Http\Controllers\Api\V1\Sales\SaleController;
 use App\Http\Controllers\Api\V1\Sales\ShiftController;
 use App\Http\Controllers\Api\V1\Sync\SyncController;
 use App\Http\Controllers\Api\V1\Sync\TerminalsController;
+use App\Http\Controllers\Api\V1\System\AuditLogController;
 use App\Http\Controllers\Api\V1\System\HealthController;
+use App\Http\Controllers\Api\V1\System\SettingsController;
 use App\Http\Controllers\Api\V1\Terminal\TerminalController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,7 +33,7 @@ use Illuminate\Support\Facades\Route;
 | Every route that is not public requires authentication (auth:sanctum) and
 | an actor check: `actor.user` (an active person) or `actor.device` (an active
 | terminal). Permission checks use `can:<permission>` and run on the server.
-| Conventions: docs/api-conventions.md, docs/authentication.md
+| Conventions: docs/README.md, docs/README.md
 |
 */
 
@@ -53,7 +56,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('cashiers', [TerminalController::class, 'cashiers'])->name('cashiers');
         });
 
-        // Synchronization (desktop terminals, device token): docs/offline-sync.md.
+        // Synchronization (desktop terminals, device token): docs/README.md.
         Route::middleware('actor.device')->prefix('sync')->name('sync.')->controller(SyncController::class)->group(function () {
             Route::post('operations', 'push')->middleware('throttle:sync')->name('push');
             Route::get('changes', 'changes')->name('changes');
@@ -75,7 +78,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             // Permission (dashboard.view or inventory.view) is checked in the controller.
             Route::get('dashboard/stock-alerts', StockAlertController::class)->name('dashboard.stock-alerts');
 
-            // Catalog: products, SKUs, barcodes, units, prices, images (docs/products-inventory.md).
+            // Catalog: products, SKUs, barcodes, units, prices, images (docs/README.md).
             Route::middleware('can:products.view')->group(function () {
                 Route::get('categories', [CatalogController::class, 'categories'])->name('categories.index');
                 Route::get('brands', [CatalogController::class, 'brands'])->name('brands.index');
@@ -117,7 +120,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             });
             Route::post('skus/{sku}/prices', [ProductController::class, 'storePrice'])->middleware('can:products.manage_prices')->name('skus.prices.store');
 
-            // Inventory: every stock change goes through the StockLedger (docs/products-inventory.md).
+            // Inventory: every stock change goes through the StockLedger (docs/README.md).
             Route::prefix('inventory')->name('inventory.')->controller(InventoryController::class)->group(function () {
                 Route::middleware('can:inventory.view')->group(function () {
                     Route::get('stock', 'stock')->name('stock');
@@ -135,7 +138,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::post('documents/{document}/approve', 'approve')->middleware('can:inventory.approve')->name('documents.approve');
             });
 
-            // Point of sale: the terminal is identified by X-Compriva-Device (docs/point-of-sale.md).
+            // Point of sale: the terminal is identified by X-Compriva-Device (docs/README.md).
             Route::middleware('can:pos.access')->prefix('pos')->name('pos.')->controller(PosController::class)->group(function () {
                 Route::get('terminal', 'bootstrap')->name('bootstrap');
                 Route::post('terminal', 'registerTerminal')->middleware('can:devices.manage')->name('terminal.register');
@@ -144,6 +147,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::post('shift', 'openShift')->name('shift.open');
                 Route::post('shift/close', 'closeShift')->name('shift.close');
                 Route::post('cash-movements', 'cashMovement')->name('cash-movements.store');
+                Route::post('drawer-opened', 'drawerOpened')->middleware('can:pos.open_drawer')->name('drawer-opened');
                 Route::get('catalog', 'catalog')->name('catalog');
                 Route::post('quote', 'quote')->name('quote');
                 Route::post('checkout', 'checkout')->name('checkout');
@@ -157,6 +161,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::get('{sale}', 'show')->name('show');
                 Route::post('{sale}/reprint', 'reprint')->middleware('can:sales.reprint')->name('reprint');
                 Route::post('{sale}/void', 'void')->name('void');
+                Route::post('{sale}/customer', 'addCustomer')->middleware('can:customers.manage')->name('customer.store');
                 Route::post('{sale}/returns', 'storeReturn')->name('returns.store');
             });
 
@@ -165,7 +170,20 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::get('{shift}', 'show')->name('show');
             });
 
-            // Purchasing: suppliers, purchase orders, receiving (docs/purchasing-cashier-reports.md).
+            // Customers (docs/README.md). Cashiers hold both permissions by default.
+            Route::controller(CustomerController::class)->prefix('customers')->name('customers.')->group(function () {
+                Route::middleware('can:customers.view')->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::get('{customer}', 'show')->name('show');
+                    Route::get('{customer}/sales', 'sales')->name('sales');
+                });
+                Route::middleware('can:customers.manage')->group(function () {
+                    Route::post('/', 'store')->name('store');
+                    Route::patch('{customer}', 'update')->name('update');
+                });
+            });
+
+            // Purchasing: suppliers, purchase orders, receiving (docs/README.md).
             Route::controller(PurchasingController::class)->group(function () {
                 Route::middleware('can:purchasing.view')->group(function () {
                     Route::get('suppliers', 'suppliers')->name('suppliers.index');
@@ -211,6 +229,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::middleware('can:users.manage')->prefix('users')->name('users.')->controller(UserController::class)->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');
+                Route::get('role-options', 'roleOptions')->name('role-options');
                 Route::get('{user}', 'show')->name('show');
                 Route::patch('{user}', 'update')->name('update');
                 Route::put('{user}/roles', 'roles')->name('roles');
@@ -218,6 +237,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 Route::post('{user}/activate', 'activate')->name('activate');
                 Route::put('{user}/credentials', 'credentials')->name('credentials');
                 Route::delete('{user}/access', 'revokeAccess')->name('revoke-access');
+            });
+
+            // Store details and settings; the audit log (docs/README.md).
+            Route::middleware('can:settings.manage')->controller(SettingsController::class)->prefix('settings')->name('settings.')->group(function () {
+                Route::get('/', 'show')->name('show');
+                Route::patch('store', 'updateStore')->name('store.update');
+                Route::put('{group}', 'update')->name('update'); // unknown groups: 404 from the controller, after sign-in
+            });
+            Route::middleware('can:audit.view')->controller(AuditLogController::class)->prefix('audit-logs')->name('audit-logs.')->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::get('filters', 'filters')->name('filters');
             });
 
             Route::middleware('can:roles.manage')->controller(RoleController::class)->group(function () {

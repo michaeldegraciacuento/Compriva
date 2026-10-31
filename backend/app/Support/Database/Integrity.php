@@ -11,7 +11,7 @@ use LogicException;
  *
  * Written for MySQL 8.4 and verified on MariaDB 10.4 (local development).
  * Triggers raise SQLSTATE 45000, which surfaces as an Illuminate QueryException.
- * See docs/database.md, "Integrity enforcement".
+ * See docs/README.md, "Integrity enforcement".
  */
 final class Integrity
 {

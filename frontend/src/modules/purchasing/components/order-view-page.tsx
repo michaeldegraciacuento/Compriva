@@ -19,6 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toApiError } from "@/lib/api";
 import { formatDate, formatMoney, formatQuantity, formatTime } from "@/lib/format";
 import { useApiQuery } from "@/lib/use-api-query";
+import { notify } from "@/lib/notify";
 import { useCan } from "@/modules/auth/hooks";
 import { trimDecimal } from "@/modules/catalog/sku";
 import { parse, ZERO } from "@/modules/pos/fixed-point";
@@ -47,7 +48,8 @@ export function OrderViewPage() {
     setError(null);
     try {
       await action();
-      setMessage(done);
+      setMessage(null);
+      notify.success(done);
       await order.reload();
     } catch (caught) {
       setError(toApiError(caught).message);

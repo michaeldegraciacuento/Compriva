@@ -82,6 +82,18 @@ export interface PresetDiscount {
   min_purchase: string | null;
 }
 
+/** A customer as the POS picker sees it (also cached on desktop terminals). */
+export interface PosCustomer {
+  id: string;
+  code: string | null;
+  name: string;
+  type: "regular" | "senior_citizen" | "pwd" | "business";
+  phone: string | null;
+  tin: string | null;
+  address: string | null;
+  id_number: string | null;
+}
+
 export interface ReceiptSettings {
   header_lines: string[];
   footer_text: string | null;
@@ -98,6 +110,8 @@ export interface PosBootstrap {
   discounts: PresetDiscount[];
   categories: { id: string; name: string }[];
   receipt: ReceiptSettings;
+  /** Missing from servers before this setting existed. */
+  pos?: { max_cash_in_drawer: string };
 }
 
 export interface SellUnit {
@@ -184,7 +198,12 @@ export interface Sale {
   cashier_shift_id: string;
   occurred_at: string;
   business_date: string;
+  customer_id?: string | null;
   customer_name: string | null;
+  customer_tin?: string | null;
+  customer_address?: string | null;
+  /** A customer added after the sale (not on the printed receipt). */
+  customer_added?: { customer_id: string; customer_name: string | null; added_by: string | null; added_at: string; reason: string | null } | null;
   customer_id_number: string | null;
   gross_amount: string;
   discount_total: string;

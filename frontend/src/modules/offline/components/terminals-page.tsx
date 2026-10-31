@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getApiClient, toApiError } from "@/lib/api";
 import { formatDate, formatRelative, formatTime } from "@/lib/format";
 import { useApiQuery } from "@/lib/use-api-query";
+import { notify } from "@/lib/notify";
 import type { Sku } from "@/modules/catalog/types";
 import { SkuPicker } from "@/modules/inventory/components/sku-picker";
 import { formatUnits, parse } from "@/modules/pos/fixed-point";
@@ -147,6 +148,7 @@ function ConflictRow({ conflict, onResolved }: { conflict: Conflict; onResolved:
       const api = await getApiClient();
       await api.ensureCsrfCookie();
       await api.post(`/sync/conflicts/${conflict.id}/resolve`, { note });
+      notify.success("Conflict resolved");
       await onResolved();
     } catch (caught) {
       setError(toApiError(caught).message);
@@ -184,7 +186,7 @@ function TerminalDialog({ terminal, onClose, onChanged }: { terminal: TerminalRo
       const api = await getApiClient();
       await api.ensureCsrfCookie();
       await api.post(`/terminals/${terminal.id}/allocations`, { sku_id: sku.id, quantity });
-      setMessage(`${quantity} ${sku.base_unit.code} of ${sku.name} allocated to ${terminal.code}. It arrives at its next sync.`);
+      notify.success("Stock allocated", `${quantity} ${sku.base_unit.code} of ${sku.name} to ${terminal.code}. It arrives at its next sync.`);
       setSku(null);
       setQuantity("");
       await detail.reload();

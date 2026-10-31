@@ -176,9 +176,43 @@
     position: absolute;
     inset: 0 auto auto 0;
     width: 72mm;
+    max-width: none;
     color: #000;
     background: #fff;
     box-shadow: none;
     border: 0;
   }
+  .receipt-print[data-paper="58mm"] {
+    width: 48mm;
+  }
+  .receipt-print[data-paper="a4"] {
+    width: 100%;
+    padding: 0;
+  }
+}
+
+/* Sweet alert (src/components/sweet-alert.tsx): pop in, draw the ring, then the mark. */
+@keyframes sweet-pop {
+  0% { transform: scale(0.7); opacity: 0; }
+  45% { transform: scale(1.05); opacity: 1; }
+  80% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+@keyframes sweet-draw { to { stroke-dashoffset: 0; } }
+@keyframes sweet-dot-in { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
+@keyframes sweet-countdown { from { width: 100%; } to { width: 0%; } }
+
+.sweet-popup { animation: sweet-pop 0.35s ease-out both; }
+.sweet-icon .sweet-ring-bg { opacity: 0.18; }
+.sweet-icon .sweet-ring {
+  stroke-dasharray: 227; stroke-dashoffset: 227;
+  transform: rotate(-90deg); transform-origin: 40px 40px;
+  animation: sweet-draw 0.45s ease-out 0.1s forwards;
+}
+.sweet-icon .sweet-mark { stroke-dasharray: 80; stroke-dashoffset: 80; animation: sweet-draw 0.35s ease-out 0.45s forwards; }
+.sweet-icon .sweet-dot { opacity: 0; transform-box: fill-box; transform-origin: center; animation: sweet-dot-in 0.25s ease-out 0.55s forwards; }
+.sweet-timer { width: 100%; animation-name: sweet-countdown; animation-timing-function: linear; animation-fill-mode: forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sweet-popup, .sweet-icon .sweet-ring, .sweet-icon .sweet-mark, .sweet-icon .sweet-dot { animation: none; stroke-dashoffset: 0; opacity: 1; }
 }

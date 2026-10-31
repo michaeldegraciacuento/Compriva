@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toApiError } from "@/lib/api";
 import { formatMoney, formatTime } from "@/lib/format";
+import { notify } from "@/lib/notify";
 
 import { usePos } from "../backend-context";
 import { normalizeAmount } from "../fixed-point";
@@ -40,6 +41,7 @@ export function RegisterTerminal({ bootstrap, onDone }: { bootstrap: PosBootstra
     setError(null);
     try {
       await pos.registerTerminal(name.trim());
+      notify.success("Terminal registered", name.trim());
       await onDone();
     } catch (caught) {
       setError(toApiError(caught).message);
@@ -86,6 +88,7 @@ export function OpenShift({ bootstrap, onDone }: { bootstrap: PosBootstrap; onDo
     setError(null);
     try {
       await pos.openShift(amount);
+      notify.success("Shift opened", `Opening cash ${formatMoney(amount)}.`);
       await onDone();
     } catch (caught) {
       setError(toApiError(caught).message);

@@ -16,6 +16,7 @@ import { formatDate, formatTime } from "@/lib/format";
 import { useApiQuery } from "@/lib/use-api-query";
 import { useCan } from "@/modules/auth/hooks";
 import { formatUnits, parse } from "@/modules/pos/fixed-point";
+import { notify } from "@/lib/notify";
 
 import { recentOperations } from "../outbox";
 import { getOfflineRuntime, useSyncStatus } from "../runtime";
@@ -71,7 +72,10 @@ export function SyncPage() {
   const syncNow = async () => {
     setBusy(true);
     try {
-      await (await getOfflineRuntime())?.engine.syncNow();
+      const report = await (await getOfflineRuntime())?.engine.syncNow();
+      if (report?.outcome === "ok") notify.success("Synced", report.pushed > 0 ? `${report.pushed} change${report.pushed === 1 ? "" : "s"} sent to the server.` : "Everything is up to date.");
+      else if (report?.outcome === "offline") notify.warning("Still offline", "Sales stay on this terminal until the connection is back.");
+      else if (report) notify.error("Sync finished with problems", report.message ?? undefined);
       await data.reload();
     } finally {
       setBusy(false);

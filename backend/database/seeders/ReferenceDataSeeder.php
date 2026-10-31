@@ -66,7 +66,7 @@ class ReferenceDataSeeder extends Seeder
         }
     }
 
-    /** Cash, plus GCash and Maya paid by QR code (docs/point-of-sale.md §5). */
+    /** Cash, plus GCash and Maya paid by QR code (docs/README.md). */
     private function paymentMethods(): void
     {
         $methods = [

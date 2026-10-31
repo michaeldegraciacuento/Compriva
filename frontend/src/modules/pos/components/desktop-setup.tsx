@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toApiError } from "@/lib/api";
+import { notify } from "@/lib/notify";
 import { useAuthStore } from "@/modules/auth/store";
 import { setUpDesktopTerminal } from "@/modules/offline/runtime";
 
@@ -30,6 +31,7 @@ export function DesktopSetup({ onDone }: { onDone: () => Promise<void> }) {
     setError(null);
     try {
       await setUpDesktopTerminal(name.trim());
+      notify.success("Terminal set up", "Products and stock are downloaded; this terminal can now sell offline.");
       await onDone();
     } catch (caught) {
       setError(caught instanceof Error && !("code" in caught) ? caught.message : toApiError(caught).message);

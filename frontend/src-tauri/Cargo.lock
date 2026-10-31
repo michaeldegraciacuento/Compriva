@@ -661,6 +661,7 @@ dependencies = [
  "tauri-plugin-sql",
  "tempfile",
  "uuid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

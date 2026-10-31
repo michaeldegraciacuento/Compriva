@@ -3,7 +3,7 @@ import type { LocalDatabase, SqlStatement } from "@/platform/types";
 import type { CashierSnapshot, Session } from "./types";
 
 /**
- * Offline cashier sign-in for desktop terminals (docs/authentication.md §4).
+ * Offline cashier sign-in for desktop terminals (docs/README.md).
  *
  * The terminal caches the server's cashier snapshot (bcrypt PIN hashes,
  * permissions) in SQLite. Offline, a PIN is verified against the cached hash

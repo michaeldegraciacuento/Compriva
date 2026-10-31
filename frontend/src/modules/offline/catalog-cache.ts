@@ -2,12 +2,13 @@ import { cashierSnapshotStatements } from "@/modules/auth/offline";
 import type { SqlStatement } from "@/platform/types";
 
 import { META, setList, setMeta } from "./meta";
+import type { PosCustomer } from "../pos/types";
 import type { Allocation, CachedItem, Change, Snapshot } from "./types";
 
 /**
  * Writes what the terminal pulls into its local database. A snapshot or a
  * page of changes is applied together with the new cursor in ONE transaction,
- * so an interrupted pull simply replays the page next time (docs/offline-sync.md §5).
+ * so an interrupted pull simply replays the page next time (docs/README.md).
  */
 
 function itemStatements(item: CachedItem): SqlStatement[] {
@@ -24,6 +25,15 @@ function itemStatements(item: CachedItem): SqlStatement[] {
       params: [b.barcode, item.id, b.unit_id],
     })),
   ];
+}
+
+/** A customer in the local cache, searchable by name, code, phone and ID numbers. */
+export function customerStatement(customer: PosCustomer): SqlStatement {
+  const search = [customer.name, customer.code, customer.phone, customer.id_number, customer.tin].filter(Boolean).join(" ").toLowerCase();
+  return {
+    sql: "INSERT INTO customers (id, name, search, data) VALUES ($1, $2, $3, $4) ON CONFLICT(id) DO UPDATE SET name = excluded.name, search = excluded.search, data = excluded.data",
+    params: [customer.id, customer.name, search, JSON.stringify(customer)],
+  };
 }
 
 function allocationStatement(allocation: Allocation, now: string): SqlStatement {
@@ -46,6 +56,8 @@ export function snapshotStatements(snapshot: Snapshot, cursor: number, now = new
     setList("settings", snapshot.settings),
     { sql: "DELETE FROM stock_allocations" },
     ...snapshot.allocations.map((a) => allocationStatement(a, at)),
+    { sql: "DELETE FROM customers" },
+    ...(snapshot.customers ?? []).map(customerStatement),
     ...cashierSnapshotStatements(snapshot.cashiers, now),
     setMeta(META.terminal, JSON.stringify(snapshot.terminal)),
     setMeta(META.cursor, String(cursor)),
@@ -70,6 +82,8 @@ export function changeStatements(changes: Change[], cursor: number, now = new Da
         return cashierSnapshotStatements(change.data, now);
       case "allocation":
         return [allocationStatement(change.data, at)];
+      case "customer":
+        return change.op === "upsert" ? [customerStatement(change.data)] : [{ sql: "DELETE FROM customers WHERE id = $1", params: [change.id] }];
     }
   });
   return [...statements, setMeta(META.cursor, String(cursor))];

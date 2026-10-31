@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toApiError } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { useApiQuery } from "@/lib/use-api-query";
+import { notify } from "@/lib/notify";
 import { describeConversion, skuUnits } from "@/modules/catalog/sku";
 import type { Sku } from "@/modules/catalog/types";
 import { SkuPicker } from "@/modules/inventory/components/sku-picker";
@@ -112,6 +113,7 @@ function OrderForm({ order }: { order: PurchaseOrder | null }) {
     };
     try {
       const saved = order ? await updateOrder(order.id, input) : await createOrder(input);
+      notify.success(order ? "Purchase order saved" : "Purchase order created", saved.number);
       router.push(`/purchasing/orders/view?id=${saved.id}`);
     } catch (caught) {
       setError(toApiError(caught).message);

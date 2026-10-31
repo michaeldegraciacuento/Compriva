@@ -19,7 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 /**
- * Terminal ↔ server synchronization (docs/offline-sync.md §4–§6). Every route
+ * Terminal ↔ server synchronization (docs/README.md). Every route
  * needs the terminal's device token and its X-Compriva-Device header.
  */
 class SyncController extends Controller
@@ -74,6 +74,7 @@ class SyncController extends Controller
                     'payment_methods' => $data->paymentMethods(),
                     'discounts' => $data->discounts(),
                     'cashiers' => $data->cashiers(),
+                    'customers' => $data->customers()['customers'],
                     'settings' => $data->settings(),
                     'allocations' => $data->allocations($device),
                 ],
@@ -105,6 +106,16 @@ class SyncController extends Controller
         }
         if ($rows->contains('entity', 'category')) {
             $changes[] = ['entity' => 'categories', 'op' => 'replace', 'data' => $data->categories()];
+        }
+        $customerIds = $rows->where('entity', 'customer')->pluck('entity_id')->unique()->values()->all();
+        if ($customerIds !== []) {
+            $customers = $data->customers($customerIds);
+            foreach ($customers['customers'] as $customer) {
+                $changes[] = ['entity' => 'customer', 'op' => 'upsert', 'id' => $customer['id'], 'data' => $customer];
+            }
+            foreach ($customers['removed'] as $id) {
+                $changes[] = ['entity' => 'customer', 'op' => 'delete', 'id' => $id];
+            }
         }
         if ($rows->contains('stream', 'cashiers')) {
             $changes[] = ['entity' => 'cashiers', 'op' => 'replace', 'data' => $data->cashiers()];

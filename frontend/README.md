@@ -17,5 +17,4 @@ npm run desktop:dev    # desktop terminal (Tauri window)
 | `npm run build` | Web server build |
 | `npm run desktop:build` | Desktop installer (static export + Tauri bundle) |
 
-Architecture and rules: [../docs/architecture.md](../docs/architecture.md) and
-[../docs/coding-standards.md](../docs/coding-standards.md).
+Installation, flows and deployment: [../docs/README.md](../docs/README.md).

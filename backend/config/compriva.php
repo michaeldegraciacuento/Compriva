@@ -10,7 +10,7 @@ return [
     | Timestamps are stored in UTC (config/app.php). The business timezone is
     | used to decide which business day a transaction belongs to and for
     | display. Monetary amounts are DECIMAL(15,4) values handled as strings
-    | (bcmath); see docs/database.md.
+    | (bcmath); see docs/README.md.
     |
     */
 

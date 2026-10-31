@@ -179,9 +179,11 @@ export function CartPanel({ priced, presets, problems, onPay, onHold }: {
           presets={presets}
           value={cart.discount}
           customerName={cart.customerName}
-          onSave={(discount, name) => {
+          customer={cart.customer}
+          onSave={(discount, name, customer) => {
             cart.setDiscount(discount);
             cart.setCustomerName(name);
+            cart.setCustomer(customer);
           }}
         />
       )}

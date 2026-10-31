@@ -34,7 +34,7 @@ class AppServiceProvider extends ServiceProvider
         Models\Product::class, Models\ProductSku::class, Models\ProductPrice::class, Models\ProductBarcode::class,
         Models\UnitConversion::class, Models\ProductImage::class, Models\TaxRate::class, Models\Category::class,
         User::class, Models\PaymentMethod::class, Models\Discount::class, Models\Setting::class,
-        Models\Store::class, Models\TerminalStockAllocation::class,
+        Models\Store::class, Models\TerminalStockAllocation::class, Models\Customer::class,
     ];
 
     /**
@@ -45,14 +45,14 @@ class AppServiceProvider extends ServiceProvider
         Relation::enforceMorphMap(MorphMap::MAP);
 
         // Mass assignment protection comes from validated FormRequest data, not
-        // $fillable lists (docs/coding-standards.md). Outside production, fail
+        // $fillable lists (docs/README.md). Outside production, fail
         // fast on lazy loading and on reading attributes that were not selected.
         Model::unguard();
         Model::shouldBeStrict(! $this->app->isProduction());
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
-        // Terminals cache these; every change is logged for them to pull (docs/offline-sync.md §5).
+        // Terminals cache these; every change is logged for them to pull (docs/README.md).
         foreach (self::OBSERVED_FOR_SYNC as $model) {
             $model::observe(SyncChangeObserver::class);
         }

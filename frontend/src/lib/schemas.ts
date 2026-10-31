@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * Form field schemas for decimal strings. Values stay strings end to end
- * (docs/database.md D4): the server does all arithmetic.
+ * (docs/README.md D4): the server does all arithmetic.
  */
 
 const DECIMAL_4 = /^\d{1,11}(\.\d{1,4})?$/;

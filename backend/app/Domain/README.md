@@ -1,7 +1,7 @@
 # Domain modules
 
 Business rules live here, one folder per bounded context. Controllers stay thin and call into
-these modules. See `docs/architecture.md` and `docs/coding-standards.md`.
+these modules. See `docs/README.md` and `docs/README.md`.
 
 | Module | Owns | UI module(s) |
 | ------ | ---- | ------------ |
@@ -41,4 +41,4 @@ Rules:
 
 - A module may call another module's **Actions** or **Queries**, never write to another module's tables directly.
 - Money and quantities are `DECIMAL(15,4)` decimal strings (`decimal:4` casts, bcmath), never `float`.
-- Every write that a terminal can perform offline must be idempotent on its operation ID (see `docs/offline-sync.md`).
+- Every write that a terminal can perform offline must be idempotent on its operation ID (see `docs/README.md`).

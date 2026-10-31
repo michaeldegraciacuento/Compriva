@@ -23,4 +23,9 @@ class Setting extends Model
     {
         return $this->belongsTo(Store::class);
     }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
 }

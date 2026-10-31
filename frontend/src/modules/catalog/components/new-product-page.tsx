@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { applyApiError } from "@/lib/form-errors";
+import { notify } from "@/lib/notify";
 import { RequirePermission } from "@/modules/auth/components/auth-guard";
 
 import { createProduct } from "../api";
@@ -49,6 +50,7 @@ function NewProductForm() {
     setMessage(null);
     try {
       const product = await createProduct({ ...productInput(values), skus: [skuInput(values.skus[0])] });
+      notify.success("Product created", `${product.name}: add more units, barcodes and stock next.`);
       router.push(`/products/edit?id=${product.id}`);
     } catch (error) {
       setMessage(applyApiError(error, setError, FIELDS));

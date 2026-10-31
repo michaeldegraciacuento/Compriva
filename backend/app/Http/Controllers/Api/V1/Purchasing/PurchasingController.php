@@ -22,7 +22,7 @@ use Illuminate\Validation\Rule;
 
 /**
  * Suppliers, purchase orders, goods receipts (partial deliveries) and purchase
- * cost history (docs/purchasing-cashier-reports.md §1). Permissions per route:
+ * cost history (docs/README.md). Permissions per route:
  * purchasing.view / manage / approve / receive.
  */
 class PurchasingController extends Controller

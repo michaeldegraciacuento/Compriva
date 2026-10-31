@@ -145,4 +145,24 @@ class UserManagementTest extends AuthTestCase
 
         $this->getJson('/api/v1/users?q=cruz')->assertJsonCount(1, 'data');
     }
+
+    public function test_the_user_form_knows_which_roles_and_users_a_manager_may_change(): void
+    {
+        $owner = $this->userWithRole('owner');
+        $manager = $this->userWithRole('manager');
+        $cashier = $this->userWithRole('cashier');
+
+        // Managers cannot open the Roles page, but the user form lists roles, marking the ones they may give.
+        $this->assertErrorCode($this->actingAsUser($manager)->getJson('/api/v1/roles'), 403, 'FORBIDDEN');
+        $options = collect($this->actingAsUser($manager)->getJson('/api/v1/users/role-options')->assertOk()->json('data'))->keyBy('name');
+        $this->assertFalse($options['owner']['grantable']);
+        $this->assertTrue($options['cashier']['grantable']);
+        $this->assertTrue($options['manager']['grantable']);
+
+        $this->actingAsUser($manager)->getJson("/api/v1/users/{$owner->id}")->assertJsonPath('meta.manageable', false)->assertJsonPath('meta.is_self', false);
+        $this->actingAsUser($manager)->getJson("/api/v1/users/{$cashier->id}")->assertJsonPath('meta.manageable', true);
+        $this->actingAsUser($manager)->getJson("/api/v1/users/{$manager->id}")->assertJsonPath('meta.is_self', true);
+
+        $this->assertErrorCode($this->actingAsUser($cashier)->getJson('/api/v1/users/role-options'), 403, 'FORBIDDEN');
+    }
 }

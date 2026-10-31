@@ -15,8 +15,10 @@ use App\Http\Requests\V1\Identity\StoreUserRequest;
 use App\Http\Requests\V1\Identity\SyncUserRolesRequest;
 use App\Http\Requests\V1\Identity\UpdateUserRequest;
 use App\Http\Resources\V1\Identity\UserResource;
+use App\Models\Role;
 use App\Models\User;
 use App\Support\Audit\AuditLogger;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
@@ -50,6 +52,25 @@ class UserController extends Controller
         return UserResource::collection($users);
     }
 
+    /**
+     * Roles that can be given to users, for the user form. `grantable` is false
+     * for roles with permissions the signed-in user does not have (the server
+     * refuses those anyway). Separate from GET /roles, which needs roles.manage.
+     */
+    public function roleOptions(Request $request): JsonResponse
+    {
+        $mine = $request->user()->permissionNames();
+
+        return response()->json(['data' => Role::with('permissions:id,name')->orderBy('display_name')->get()->map(fn (Role $role) => [
+            'id' => $role->id,
+            'name' => $role->name,
+            'display_name' => $role->display_name,
+            'description' => $role->description,
+            'permissions_count' => $role->permissions->count(),
+            'grantable' => $role->permissions->pluck('name')->diff($mine)->isEmpty(),
+        ])->values()]);
+    }
+
     public function store(StoreUserRequest $request, CreateUser $create): UserResource
     {
         $user = $create->execute($request->user(), $request->safe()->except('roles', 'password_confirmation'), $request->input('roles'));
@@ -57,9 +78,15 @@ class UserController extends Controller
         return new UserResource($user->load('roles'));
     }
 
-    public function show(User $user): UserResource
+    /** meta.manageable: whether the signed-in user may change this user (not someone with more access). */
+    public function show(Request $request, User $user): UserResource
     {
-        return new UserResource($user->load('roles'));
+        $actor = $request->user();
+
+        return (new UserResource($user->load('roles')))->additional(['meta' => [
+            'is_self' => $actor->is($user),
+            'manageable' => $user->permissionNames()->diff($actor->permissionNames())->isEmpty(),
+        ]]);
     }
 
     public function update(UpdateUserRequest $request, User $user, AuditLogger $audit): UserResource

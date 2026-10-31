@@ -3,6 +3,7 @@
 namespace App\Domain\Sync;
 
 use App\Models\Category;
+use App\Models\Customer;
 use App\Models\Discount;
 use App\Models\PaymentMethod;
 use App\Models\Product;
@@ -44,6 +45,7 @@ class SyncChangeObserver
             $model instanceof TaxRate => SyncChanges::skus(ProductSku::whereHas('product', fn ($q) => $q->where('tax_rate_id', $model->id))->pluck('id')),
             $model instanceof Category => SyncChanges::record('catalog', 'category', $model->id),
             $model instanceof User => SyncChanges::cashiers($model->id),
+            $model instanceof Customer => SyncChanges::record('customers', 'customer', $model->id),
             $model instanceof PaymentMethod => SyncChanges::record('settings', 'payment_method', $model->id),
             $model instanceof Discount => SyncChanges::record('settings', 'discount', $model->id),
             $model instanceof Setting, $model instanceof Store => SyncChanges::record('settings', $model->getMorphClass(), $model->id),

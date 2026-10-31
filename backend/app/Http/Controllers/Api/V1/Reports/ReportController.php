@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api\V1\Reports;
 use App\Domain\Reporting\Export\ReportExporter;
 use App\Domain\Reporting\ReportCatalog;
 use App\Domain\Reporting\ReportFilters;
+use App\Domain\Settings\Settings;
 use App\Http\Controllers\Controller;
-use App\Models\Setting;
 use App\Support\Audit\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +14,7 @@ use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Reports (docs/purchasing-cashier-reports.md §3). JSON for the screen, or
+ * Reports (docs/README.md). JSON for the screen, or
  * ?format=csv|xlsx|pdf for a download. Cost and profit need reports.view_profit:
  * profit-only reports are hidden, and profit columns are removed elsewhere.
  */
@@ -39,7 +39,7 @@ class ReportController extends Controller
             'format' => ['nullable', Rule::in(['json', 'csv', 'xlsx', 'pdf'])],
         ]);
 
-        $filters = ReportFilters::fromInput($input, (int) (Setting::whereNull('store_id')->where('group', 'inventory')->where('key', 'expiry_warning_days')->value('value') ?? 30));
+        $filters = ReportFilters::fromInput($input, (int) Settings::get('inventory', 'expiry_warning_days'));
         if ($filters->from->diffInDays($filters->to) > 400) {
             abort(422, 'Choose a period of at most 400 days.');
         }

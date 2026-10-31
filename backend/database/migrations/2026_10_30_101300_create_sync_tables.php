@@ -6,7 +6,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Domain 16 — Synchronization (docs/offline-sync.md).
+ * Domain 16 — Synchronization (docs/README.md).
  *
  * sync_operations: every operation pushed by a terminal, keyed by its
  *   operation_id. The primary key makes pushes idempotent.

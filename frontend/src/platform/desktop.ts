@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
 
-import type { DeviceIdentity, LocalDatabase, Platform, TerminalCredentials } from "./types";
+import type { DeviceIdentity, LocalDatabase, Platform, PrinterAccess, PrinterInfo, TerminalCredentials } from "./types";
 
 /** Must match LOCAL_DB_URL in src-tauri/src/local_db.rs. */
 const LOCAL_DB_URL = "sqlite:compriva.db";
@@ -49,11 +49,19 @@ const terminal: TerminalCredentials = {
   verifyPin: (pin, hash) => invoke<boolean>("verify_pin", { pin, hash }),
 };
 
+const printers: PrinterAccess = {
+  list: () => invoke<PrinterInfo[]>("list_printers"),
+  async printRaw(printer, data, jobName) {
+    await invoke("print_raw", { printer, data: Array.from(data), jobName });
+  },
+};
+
 /** Tauri checkout terminal: offline-capable, bearer-token auth, unique device identity. */
 export const desktopPlatform: Platform = {
   kind: "desktop",
   authMode: "bearer",
   terminal,
+  printers,
 
   getDeviceIdentity() {
     identity ??= invoke<DeviceIdentity>("device_identity");

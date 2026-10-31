@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCan } from "@/modules/auth/hooks";
+import { notify } from "@/lib/notify";
 
 import { deleteBrand, deleteCategory, saveBrand, saveCategory, saveUnit } from "../api";
 import { useCatalogRefs } from "../hooks";
@@ -49,6 +50,7 @@ function CategoryDialog({ category, categories, trigger, onSaved }: { category: 
       fields={["name", "parent_id", "description", "is_active"]}
       onSubmit={async (values) => {
         await saveCategory(category?.id ?? null, { ...values, parent_id: values.parent_id || null, description: values.description || null });
+        notify.success(category ? "Category saved" : "Category added", values.name);
         await onSaved();
       }}
     >
@@ -98,7 +100,7 @@ function CategoriesTab({ categories, reload }: { categories: Category[]; reload:
                       title={`Delete ${c.name}?`}
                       description="Only categories without products or sub-categories can be deleted. Deactivate it instead to keep its history."
                       confirmLabel="Delete" destructive
-                      onConfirm={async () => { await deleteCategory(c.id); await reload(); }}
+                      onConfirm={async () => { await deleteCategory(c.id); notify.success("Category deleted", c.name); await reload(); }}
                     />
                   </>
                 )}
@@ -120,7 +122,7 @@ function BrandDialog({ brand, trigger, onSaved }: { brand: Brand | null; trigger
 
   return (
     <DialogForm trigger={trigger} title={brand ? "Edit brand" : "New brand"} submitLabel="Save" form={form} fields={["name", "is_active"]}
-      onSubmit={async (values) => { await saveBrand(brand?.id ?? null, values); await onSaved(); }}>
+      onSubmit={async (values) => { await saveBrand(brand?.id ?? null, values); notify.success(brand ? "Brand saved" : "Brand added", values.name); await onSaved(); }}>
       <FormField id="brand-name" label="Name" autoFocus error={form.formState.errors.name?.message} {...form.register("name")} />
       <Controller control={form.control} name="is_active" render={({ field }) => (
         <SwitchField id="brand-active" label="Active" checked={field.value} onCheckedChange={field.onChange} />
@@ -158,7 +160,7 @@ function BrandsTab({ brands, reload }: { brands: Brand[]; reload: () => Promise<
                       title={`Delete ${b.name}?`}
                       description="Only brands without products can be deleted."
                       confirmLabel="Delete" destructive
-                      onConfirm={async () => { await deleteBrand(b.id); await reload(); }}
+                      onConfirm={async () => { await deleteBrand(b.id); notify.success("Brand deleted", b.name); await reload(); }}
                     />
                   </>
                 )}
@@ -197,7 +199,7 @@ function UnitDialog({ unit, trigger, onSaved }: { unit: Unit | null; trigger: Re
 
   return (
     <DialogForm trigger={trigger} title={unit ? "Edit unit" : "New unit"} submitLabel="Save" form={form} fields={["code", "name", "type", "allows_decimal", "is_active"]}
-      onSubmit={async (values) => { await saveUnit(unit?.id ?? null, values); await onSaved(); }}>
+      onSubmit={async (values) => { await saveUnit(unit?.id ?? null, values); notify.success(unit ? "Unit saved" : "Unit added", values.name); await onSaved(); }}>
       <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">
         <FormField id="unit-code" label="Code" autoFocus placeholder="pc" error={errors.code?.message} {...register("code")} />
         <FormField id="unit-name" label="Name" placeholder="Piece" error={errors.name?.message} {...register("name")} />

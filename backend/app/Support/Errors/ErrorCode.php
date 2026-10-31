@@ -6,7 +6,7 @@ namespace App\Support\Errors;
  * Stable, machine-readable error codes returned in every API error body.
  *
  * Clients branch on these codes, never on messages. Keep this list in sync
- * with ApiErrorCode in frontend/src/types/api.ts and docs/error-handling.md.
+ * with ApiErrorCode in frontend/src/types/api.ts and docs/README.md.
  * Domain modules add their own codes here as they are built (e.g. INSUFFICIENT_STOCK).
  */
 enum ErrorCode: string

@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { toApiError } from "@/lib/api";
 import { useApiQuery } from "@/lib/use-api-query";
+import { notify } from "@/lib/notify";
 
 import { fetchPaymentMethods, removePaymentQr, updatePaymentMethod, uploadPaymentQr } from "../api";
 import type { PaymentMethod } from "../types";
@@ -53,6 +54,7 @@ function MethodCard({ method, onChange }: { method: PaymentMethod; onChange: () 
       await action();
       await onChange();
       setSaved(true);
+      notify.success(`${method.name} saved`);
     } catch (caught) {
       setError(toApiError(caught).message);
     } finally {

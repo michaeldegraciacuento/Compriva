@@ -1,6 +1,6 @@
 "use client";
 
-import { History, PauseCircle, Play, Printer, Receipt as ReceiptIcon, Trash2 } from "lucide-react";
+import { History, PauseCircle, Play, Receipt as ReceiptIcon, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/empty-state";
@@ -13,17 +13,23 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { formatMoney, formatTime } from "@/lib/format";
 import { useApiQuery } from "@/lib/use-api-query";
+import { notify } from "@/lib/notify";
+import { OpenDrawerButton } from "@/modules/hardware/components/open-drawer-button";
+import { PrintControls } from "@/modules/hardware/components/print-controls";
+import { afterSale } from "@/modules/hardware/print-jobs";
+import { useHardware } from "@/modules/hardware/settings";
 
 import { usePos } from "../backend-context";
 import { cartProblems, priceCart } from "../cart";
+import { cents, format, ZERO } from "../fixed-point";
 import { useCartStore } from "../store";
-import type { PosBootstrap, PosItem, Sale, Shift } from "../types";
+import type { PosBootstrap, PosCustomer, PosItem, Sale, SaleDiscount, Shift } from "../types";
 import { CartPanel } from "./cart-panel";
 import { CashMovementDialog } from "./cash-movement-dialog";
 import { CloseShiftDialog } from "./close-shift-dialog";
 import { ItemBrowser } from "./item-browser";
 import { PaymentDialog } from "./payment-dialog";
-import { printReceipt, Receipt } from "./receipt";
+import { Receipt } from "./receipt";
 
 /** The selling screen: items on the left, the cart on the right (stacked on phones). */
 export function Register({ bootstrap, shift, onShiftClosed }: { bootstrap: PosBootstrap; shift: Shift; onShiftClosed: () => Promise<void> }) {
@@ -32,11 +38,18 @@ export function Register({ bootstrap, shift, onShiftClosed }: { bootstrap: PosBo
   const pos = usePos();
   const [paying, setPaying] = useState(false);
   const [holding, setHolding] = useState(false);
-  const [completed, setCompleted] = useState<Sale | null>(null);
+  // The finished sale, and who it was for: "More items" starts the next sale for the same customer.
+  const [completed, setCompleted] = useState<{ sale: Sale; customer: PosCustomer | null; customerName: string; discount: SaleDiscount | null } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const priced = useMemo(() => priceCart(cart.lines, cart.discount), [cart.lines, cart.discount]);
   const problems = useMemo(() => cartProblems(cart.lines, cart.discount), [cart.lines, cart.discount]);
+  // The drawer's expected cash, refreshed after each sale and cash movement, against the store's limit.
+  const [drawerVersion, setDrawerVersion] = useState(0);
+  const live = useApiQuery(["drawer", shift.id, drawerVersion], () => pos.fetchShift());
+  const limit = cents(bootstrap.pos?.max_cash_in_drawer ?? "0");
+  const inDrawer = live.data?.summary ? cents(live.data.summary.expected_cash) : ZERO;
+  const overLimit = limit > ZERO && inDrawer > limit;
   const methods = bootstrap.payment_methods;
 
   const { loadHeld } = cart;
@@ -66,12 +79,20 @@ export function Register({ bootstrap, shift, onShiftClosed }: { bootstrap: PosBo
         <div className="flex flex-wrap gap-2">
           <HeldCartsSheet terminalId={terminal.id} />
           <RecentSalesSheet />
-          <CashMovementDialog onRecorded={setNotice} />
+          <CashMovementDialog onRecorded={(text) => { notify.success("Cash recorded", text); setDrawerVersion((v) => v + 1); }} />
+          <OpenDrawerButton />
           <CloseShiftDialog shift={shift} onClosed={onShiftClosed} />
         </div>
       </div>
 
       {notice && <Alert><AlertDescription>{notice}</AlertDescription></Alert>}
+      {overLimit && (
+        <Alert variant="destructive" role="status">
+          <AlertDescription>
+            The drawer should hold about {formatMoney(format(inDrawer))}, above the store&apos;s {formatMoney(format(limit))} limit. Record a cash drop under Cash in/out.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_28rem]">
         <ItemBrowser categories={bootstrap.categories} onAdd={add} />
@@ -89,8 +110,10 @@ export function Register({ bootstrap, shift, onShiftClosed }: { bootstrap: PosBo
           onPricesChanged={refreshPrices}
           onPaid={(sale) => {
             setPaying(false);
-            setCompleted(sale);
+            setCompleted({ sale, customer: cart.customer, customerName: cart.customerName, discount: cart.discount });
+            setDrawerVersion((v) => v + 1);
             cart.clear();
+            void afterSale(sale); // printing and the drawer, after the sale is saved
           }}
         />
       )}
@@ -99,12 +122,26 @@ export function Register({ bootstrap, shift, onShiftClosed }: { bootstrap: PosBo
           onClose={() => setHolding(false)}
           onHold={(label) => {
             const ok = cart.hold(terminal.id, shift.cashier.name, label);
-            setNotice(ok ? `Cart held as “${label}”. Resume it from Held carts.` : "The cart could not be held on this computer (storage is full or blocked).");
+            if (ok) notify.success(`Cart held as “${label}”`, "Resume it from Held carts.");
+            else setNotice("The cart could not be held on this computer (storage is full or blocked).");
             setHolding(false);
           }}
         />
       )}
-      {completed && <SaleCompleteDialog sale={completed} onClose={() => setCompleted(null)} />}
+      {completed && (
+        <SaleCompleteDialog
+          sale={completed.sale}
+          customerName={completed.customer?.name ?? (completed.customerName || null)}
+          onClose={() => setCompleted(null)}
+          onMoreItems={() => {
+            cart.setCustomer(completed.customer);
+            cart.setCustomerName(completed.customerName);
+            // An SC/PWD discount belongs to the customer and carries over (with the ID); a manual one does not.
+            if (completed.discount?.kind === "preset" && completed.discount.preset.requires_customer_id) cart.setDiscount(completed.discount);
+            setCompleted(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -224,7 +261,12 @@ function RecentSalesSheet() {
   );
 }
 
-function SaleCompleteDialog({ sale, onClose }: { sale: Sale; onClose: () => void }) {
+/**
+ * The sale is final once paid. A customer who wants more items gets a second
+ * sale ("More items" keeps the same customer); a mistake is voided, never edited.
+ */
+function SaleCompleteDialog({ sale, customerName, onClose, onMoreItems }: { sale: Sale; customerName: string | null; onClose: () => void; onMoreItems: () => void }) {
+  const paper = useHardware((s) => s.settings.paper);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-md">
@@ -236,11 +278,18 @@ function SaleCompleteDialog({ sale, onClose }: { sale: Sale; onClose: () => void
           <p className="text-sm">Change</p>
           <p className="numeric text-4xl font-bold">{formatMoney(sale.change_due)}</p>
         </div>
-        <Receipt sale={sale} />
-        <DialogFooter>
-          <Button variant="outline" onClick={printReceipt}><Printer aria-hidden /> Print receipt</Button>
+        <Receipt sale={sale} paper={paper} />
+        {/* Printing is separate from the sale: it starts after the sale is saved and can always be retried. */}
+        <PrintControls sale={sale} />
+        <DialogFooter className="gap-2">
+          {customerName && (
+            <Button variant="outline" onClick={onMoreItems}>More items for {customerName}</Button>
+          )}
           <Button onClick={onClose} autoFocus>New sale</Button>
         </DialogFooter>
+        <p className="text-center text-xs text-muted-foreground">
+          This sale is final. More items go on a new sale; a mistake is voided from This shift&apos;s sales.
+        </p>
       </DialogContent>
     </Dialog>
   );

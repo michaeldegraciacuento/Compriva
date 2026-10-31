@@ -6,7 +6,7 @@ use App\Domain\Sync\Enums\SyncChangeOperation;
 use App\Models\SyncChange;
 
 /**
- * Appends to the change log that terminals pull (docs/offline-sync.md §5).
+ * Appends to the change log that terminals pull (docs/README.md).
  *
  * The cursor is sync_changes.id, an auto-increment sequence: strictly
  * increasing and gap-tolerant, unlike timestamps (two changes in the same
@@ -16,6 +16,7 @@ use App\Models\SyncChange;
  * Streams and entities:
  *   catalog      product_sku (sellable item), category
  *   cashiers     user (the whole cashier snapshot is resent)
+ *   customers    customer
  *   settings     payment_method, discount, setting, store
  *   allocations  terminal_stock_allocation (only for its terminal)
  */

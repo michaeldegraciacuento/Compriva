@@ -33,3 +33,7 @@ keyring = { version = "4.2.0", features = ["windows-native-keyring-store"] }
 [dev-dependencies]
 sha2 = "0.11.1"
 tempfile = "3.27.0"
+
+[target.'cfg(windows)'.dependencies]
+# Raw printing through the Windows spooler (printing.rs): ESC/POS receipts and the cash drawer pulse.
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Printing"] }

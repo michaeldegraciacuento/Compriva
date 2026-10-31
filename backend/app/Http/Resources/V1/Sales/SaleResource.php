@@ -3,8 +3,8 @@
 namespace App\Http\Resources\V1\Sales;
 
 use App\Domain\Sales\Pricing\FixedPoint;
+use App\Domain\Settings\Settings;
 use App\Models\Sale;
-use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,7 +17,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class SaleResource extends JsonResource
 {
     /** Relations a full sale view and receipt use. */
-    public const RECEIPT_RELATIONS = ['device', 'cashier', 'voider', 'items.returnItems', 'discounts', 'payments', 'returns.refunds', 'returns.processor', 'store'];
+    public const RECEIPT_RELATIONS = ['device', 'cashier', 'voider', 'customerLink.customer', 'customerLink.linker', 'items.returnItems', 'discounts', 'payments', 'returns.refunds', 'returns.processor', 'store'];
 
     public static function receipt(Sale $sale): self
     {
@@ -35,7 +35,18 @@ class SaleResource extends JsonResource
             'cashier_shift_id' => $this->cashier_shift_id,
             'occurred_at' => $this->occurred_at->toIso8601ZuluString(),
             'business_date' => $this->business_date->toDateString(),
+            'customer_id' => $this->customer_id,
             'customer_name' => $this->customer_name,
+            'customer_tin' => $this->customer_tin,
+            'customer_address' => $this->customer_address,
+            // Added after the sale (not on the printed receipt): SaleCustomerLink.
+            'customer_added' => $this->whenLoaded('customerLink', fn () => $this->customerLink === null ? null : [
+                'customer_id' => $this->customerLink->customer_id,
+                'customer_name' => $this->customerLink->customer?->name,
+                'added_by' => $this->customerLink->linker?->name,
+                'added_at' => $this->customerLink->created_at->toIso8601ZuluString(),
+                'reason' => $this->customerLink->reason,
+            ]),
             'customer_id_number' => $this->customer_id_number,
             'gross_amount' => $this->gross_amount,
             'discount_total' => $this->discount_total,
@@ -120,7 +131,7 @@ class SaleResource extends JsonResource
     /** Receipt layout settings (global). @return array<string, mixed> */
     public static function receiptSettings(): array
     {
-        $settings = Setting::whereNull('store_id')->where('group', 'receipt')->pluck('value', 'key');
+        $settings = Settings::group('receipt');
 
         return [
             'header_lines' => $settings['header_lines'] ?? [],

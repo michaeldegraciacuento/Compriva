@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Receives a batch of operations from a terminal's outbox (docs/offline-sync.md §4).
+ * Receives a batch of operations from a terminal's outbox (docs/README.md).
  *
  * - Idempotent: the operation ID is the primary key of sync_operations. An
  *   operation seen before returns `duplicate` with its original result, so

@@ -1,8 +1,8 @@
-import type { CartLine, SaleDiscount } from "./types";
+import type { CartLine, PosCustomer, SaleDiscount } from "./types";
 
 /**
  * Held (parked) carts stay on the terminal, like every cart: a cart is not a
- * sale and never reaches the server until checkout (docs/offline-sync.md §1).
+ * sale and never reaches the server until checkout (docs/README.md).
  * They are kept in this browser's / desktop webview's local storage, per
  * terminal, so they survive a reload. When the desktop app sells from SQLite
  * (offline phase) this moves to the local database behind the same functions.
@@ -16,6 +16,8 @@ export interface HeldCart {
   lines: CartLine[];
   discount: SaleDiscount | null;
   customerName: string;
+  /** Missing on carts held before customers could be chosen. */
+  customer?: PosCustomer | null;
 }
 
 const key = (terminalId: string) => `compriva.pos.held.${terminalId}`;

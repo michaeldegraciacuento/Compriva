@@ -7,7 +7,7 @@ use App\Support\Audit\AuditLogger;
 
 /**
  * Sets (or clears) the PIN a cashier uses at terminals. Stored as a bcrypt
- * hash; terminals receive the hash for offline sign-in (docs/authentication.md).
+ * hash; terminals receive the hash for offline sign-in (docs/README.md).
  */
 class SetUserPin
 {
