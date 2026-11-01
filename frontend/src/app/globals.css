@@ -216,3 +216,19 @@
 @media (prefers-reduced-motion: reduce) {
   .sweet-popup, .sweet-icon .sweet-ring, .sweet-icon .sweet-mark, .sweet-icon .sweet-dot { animation: none; stroke-dashoffset: 0; opacity: 1; }
 }
+
+/* Login (src/modules/auth/components/login-screen.tsx): brand panel and the receipt's torn edge. */
+.login-panel {
+  background-color: var(--brand-700);
+  background-image:
+    radial-gradient(ellipse at 15% 0%, color-mix(in oklab, var(--brand-500) 55%, transparent) 0%, transparent 60%),
+    radial-gradient(ellipse at 100% 100%, color-mix(in oklab, #000 25%, transparent) 0%, transparent 55%),
+    linear-gradient(color-mix(in oklab, #fff 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, #fff 5%, transparent) 1px, transparent 1px);
+  background-size: auto, auto, 32px 32px, 32px 32px;
+}
+.login-receipt {
+  --tooth: 8px;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--tooth)) 100%;
+  -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--tooth)) 100%;
+}
