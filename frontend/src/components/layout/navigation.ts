@@ -30,6 +30,8 @@ export interface NavItem {
   permission: string | null;
   /** False until the module is built; rendered as "Soon", not as a link. */
   available: boolean;
+  /** Keyboard shortcut shown beside the item (handled in keyboard-shortcuts.ts). */
+  shortcut?: string;
 }
 
 export interface NavGroup {
@@ -46,7 +48,7 @@ export const NAVIGATION: readonly NavGroup[] = [
   {
     label: "Sell",
     items: [
-      { label: "Point of Sale", href: "/pos", icon: ShoppingCart, permission: "pos.access", available: true },
+      { label: "Point of Sale", href: "/pos", icon: ShoppingCart, permission: "pos.access", available: true, shortcut: "F4" },
       { label: "Sales", href: "/sales", icon: Receipt, permission: "sales.view", available: true },
       { label: "Cashier shifts", href: "/shifts", icon: Wallet, permission: "cashier.manage_shifts", available: true },
       { label: "Customers", href: "/customers", icon: UserRound, permission: "customers.view", available: true },

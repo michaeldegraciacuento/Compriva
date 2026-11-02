@@ -95,3 +95,22 @@ test("the hardware page explains browser printing and previews the receipt", asy
   await page.keyboard.press("Enter");
   await expect(page.getByRole("list", { name: "Scans" })).toContainText("typed (too slow for a scanner)");
 });
+
+test("F4 opens the Point of Sale from any page, and on the POS returns to the scan box", async ({ page }) => {
+  await page.addInitScript((id) => window.localStorage.setItem("compriva.install_id", id), INSTALL_ID);
+  await open(page, "/customers");
+  await expect(page.getByTestId("nav-Point of Sale")).toContainText("F4");
+
+  await page.keyboard.press("F4");
+  await expect(page).toHaveURL(/\/pos$/);
+  const heading = page.getByRole("heading", { name: "Point of Sale" });
+  const openShift = page.getByRole("button", { name: /Open shift with/ });
+  await expect(heading.or(openShift)).toBeVisible();
+  if (await heading.isVisible()) {
+    const scanBox = page.getByLabel("Scan a barcode or search items");
+    await heading.click(); // focus away from the scan box
+    await expect(scanBox).not.toBeFocused();
+    await page.keyboard.press("F4");
+    await expect(scanBox).toBeFocused();
+  }
+});

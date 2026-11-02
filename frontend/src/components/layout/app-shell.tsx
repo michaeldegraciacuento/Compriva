@@ -11,6 +11,7 @@ import { useSession } from "@/modules/auth/hooks";
 import { SyncIndicator } from "@/modules/offline/components/sync-indicator";
 
 import { Breadcrumbs } from "./breadcrumbs";
+import { useKeyboardShortcuts } from "./keyboard-shortcuts";
 import { Notifications } from "./notifications";
 import { SidebarNav } from "./sidebar-nav";
 import { UserMenu } from "./user-menu";
@@ -22,6 +23,7 @@ import { UserMenu } from "./user-menu";
 export function AppShell({ children }: { children: ReactNode }) {
   const session = useSession();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  useKeyboardShortcuts(session); // F4: Point of Sale
 
   return (
     <div className="flex min-h-full flex-1">

@@ -20,7 +20,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           {group.label && (
             <p className="px-3 pb-1 text-[0.7rem] font-semibold tracking-wider text-muted-foreground uppercase">{group.label}</p>
           )}
-          {group.items.map(({ label, href, icon: Icon, available }) => {
+          {group.items.map(({ label, href, icon: Icon, available, shortcut }) => {
             const active = pathname === href;
             const base = "group flex h-9 items-center gap-3 rounded-lg px-3 text-sm";
 
@@ -39,6 +39,9 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
               >
                 <Icon className={cn("size-4 text-muted-foreground", active && "text-primary")} aria-hidden />
                 {label}
+                {shortcut && (
+                  <kbd className="ml-auto rounded border bg-card px-1.5 py-0.5 font-mono text-[0.65rem] text-muted-foreground" aria-label={`Shortcut ${shortcut}`}>{shortcut}</kbd>
+                )}
               </Link>
             ) : (
               <span key={href} data-testid={`nav-${label}`} aria-disabled="true" title="Available in a later release"

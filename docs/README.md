@@ -116,6 +116,7 @@ cd frontend\src-tauri; cargo test
   weighted average.
 
 **Hardware (per computer, Hardware page)**
+- **F4** opens the Point of Sale from any page (on the POS it returns to the scan box).
 - **Scanner:** a USB barcode scanner is recognised by its typing speed, anywhere on the POS.
   Double reads are ignored, and unknown barcodes beep.
 - **Printer:** 58 mm or 80 mm thermal printers, printed directly with ESC/POS on desktop, or A4
